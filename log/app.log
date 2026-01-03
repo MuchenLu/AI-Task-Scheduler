@@ -1,0 +1,18 @@
+2025-12-12 11:46:39,054 - INFO | logger.py:43 | - Logger is set up. Log file path: c:\Users\user\Program\AI-Task-Manager\log\app.log
+2025-12-12 11:46:56,548 - INFO | audio_manager.py:19 | - Whisper model load success.
+2025-12-12 11:47:28,646 - INFO | calendar_sync.py:41 | - Google Calendar build success.
+2025-12-12 11:47:28,651 - INFO | llm_client.py:19 | - LLMClient initialized
+2025-12-12 11:47:28,913 - INFO | config.py:44 | - All required environment variables are set.
+2025-12-12 11:47:29,376 - ERROR | db_manager.py:24 | - Read json file failed: Expecting value: line 1 column 1 (char 0)
+2025-12-12 11:55:00,140 - INFO | logger.py:43 | - Logger is set up. Log file path: c:\Users\user\Program\AI-Task-Manager\log\app.log
+2025-12-12 11:55:07,350 - INFO | audio_manager.py:19 | - Whisper model load success.
+2025-12-12 11:55:09,689 - INFO | calendar_sync.py:41 | - Google Calendar build success.
+2025-12-12 11:55:09,689 - INFO | llm_client.py:19 | - LLMClient initialized
+2025-12-12 11:55:09,761 - INFO | config.py:44 | - All required environment variables are set.
+2025-12-12 11:55:09,899 - ERROR | db_manager.py:24 | - Read json file failed: Expecting value: line 1 column 1 (char 0)
+2025-12-12 11:58:01,876 - INFO | logger.py:43 | - Logger is set up. Log file path: c:\Users\user\Program\AI-Task-Manager\log\app.log
+2025-12-12 11:58:10,039 - INFO | audio_manager.py:19 | - Whisper model load success.
+2025-12-12 11:58:12,372 - INFO | calendar_sync.py:41 | - Google Calendar build success.
+2025-12-12 11:58:12,372 - INFO | llm_client.py:19 | - LLMClient initialized
+2025-12-12 11:58:12,438 - INFO | config.py:44 | - All required environment variables are set.
+2025-12-12 11:58:12,580 - ERROR | db_manager.py:24 | - Read json file failed: Expecting value: line 1 column 1 (char 0)

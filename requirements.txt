@@ -1,0 +1,18 @@
+# === Google AI & Calendar API ===
+google-api-python-client
+google-auth-oauthlib
+google-generativeai
+python-dotenv
+
+# === GUI ===
+PyQt6
+keyboard
+pyinstaller
+
+# === Voice ===
+openai-whisper
+PyAudio
+pydub
+
+# === Utils ===
+pytz
