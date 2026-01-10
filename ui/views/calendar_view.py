@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QHBoxLayout
+from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QHBoxLayout, QScrollArea, QWidget
 from PyQt6.QtCore import pyqtSignal, Qt
 from ui.components.calendar_label import FixedEventLabel, SuggestEventLabel
 from ui.styles import Colors
@@ -20,15 +20,38 @@ class CalendarView(QFrame) :
         """
         super().__init__(parent)
         self.setStyleSheet(f"""
-                           QFrame {{
-                background-color: {Colors.BACKGROUND};
-                border: none;
-            }}
-            """)
+                            QFrame {{
+                                background-color: {Colors.BACKGROUND};
+                                border: none;
+                            }}
+                            QScrollArea {{
+                                border: none;
+                                background-color: transparent;
+                            }}
+                            QWidget#scrollContent {{
+                                background-color: transparent;
+                            }}
+                           """)
         
-        self.layout = QHBoxLayout(self)
+        # 主佈局，用於容納滾動區域
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # 滾動區域，允許檢視超出視窗大小的內容
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+
+        # 用於滾動內容的容器 widget
+        scroll_content_widget = QWidget()
+        scroll_content_widget.setObjectName("scrollContent")
+        scroll_area.setWidget(scroll_content_widget)
+        
+        # 這個佈局才真正持有日曆的欄位
+        self.layout = QHBoxLayout(scroll_content_widget)
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(8)
+        
+        main_layout.addWidget(scroll_area)
         
         self.task_state_manager = task_state_manager
         self.task_state_manager.task_info.connect(self.update)
@@ -70,7 +93,7 @@ class CalendarView(QFrame) :
 
         for hour in range(start_hour, end_hour + 1):
             time_label = QLabel(f"{hour:02d}:00")
-            time_label.setStyleSheet("font-size: 12px; color: #888888;")
+            time_label.setStyleSheet(f"font-size: 12px; color: {Colors.TEXT_SECONDARY};")
             time_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
             time_label.setFixedHeight(int(60 * MIN_PIXEL))
             time_label.setContentsMargins(0, 0, 10, 0)
@@ -87,7 +110,7 @@ class CalendarView(QFrame) :
             date_column.setSpacing(0)
 
             date_label = QLabel(date.strftime('%Y-%m-%d'))
-            date_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 5px;")
+            date_label.setStyleSheet(f"font-size: 14px; font-weight: bold; margin-bottom: 5px; color: {Colors.TEXT_PRIMARY};")
             date_column.addWidget(date_label)
             
             today_schedules = [s for s in schedules if datetime.fromisoformat(s['start']['dateTime']).date() == date]

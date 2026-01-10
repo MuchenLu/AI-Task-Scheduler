@@ -1,126 +1,66 @@
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QCursor
+from PyQt6.QtCore import pyqtSignal, Qt
 from ui.styles import Colors
 
-class FixedEventLabel(QFrame) :
-    def __init__(self, text: str, time: str, height: int, parent = None) :
+class BaseEventLabel(QFrame):
+    """
+    一個基礎的事件標籤，包含標題和時間。
+    透過在內部佈局中設定 padding 來解決文字被邊框裁切的問題。
+    """
+    def __init__(self, title, time_text, height, parent=None):
         super().__init__(parent)
-        self.setFixedSize(200, height)
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.layout.setSpacing(5)
+        # 設定最小高度，但允許內容稍微撐開以容納邊距
+        self.setMinimumHeight(height)
         
-        self.title = QLabel(text, self)
-        self.title.setWordWrap(True)
-        self.title.setStyleSheet(f"""QLabel {{
-                                font-size: 13px;
-                                font-weight: bold;
-                                color: {Colors.TEXT_PRIMARY};
-                                background-color: transparent; /* 重要：透明背景才不會蓋住卡片底色 */
-                                border: none;
-                                padding: 0px;
-                                margin-bottom: 2px;
-                            }}""")
-        self.layout.addWidget(self.title)
+        # 核心修正：在內部佈局中加入邊距 (padding)
+        # 這會在 QFrame 的邊框和內部 QLabel 之間創造空間
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 5, 8, 5) # 左右 8px, 上下 5px
+        layout.setSpacing(0)
+
+        self.title_label = QLabel(title)
+        self.title_label.setWordWrap(True)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        self.time = QLabel(time, self)
-        self.time.setWordWrap(True)
-        self.time.setStyleSheet(f"""
-                                QLabel {{
-                                    font-size: 11px;
-                                    color: {Colors.TEXT_SECONDARY};
-                                    background-color: transparent;
-                                    border: none;
-                                    padding: 0px;
-                                    margin-top: 2px;
-                                }}
-                                """)
-        self.layout.addWidget(self.time)
-        
+        self.time_label = QLabel(time_text)
+        self.time_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 11px;")
+        self.time_label.setAlignment(Qt.AlignmentFlag.AlignBottom)
+
+        layout.addWidget(self.title_label)
+        layout.addStretch() # 將時間推到底部
+        layout.addWidget(self.time_label)
+
+class FixedEventLabel(BaseEventLabel):
+    """固定的日曆行程標籤"""
+    def __init__(self, title, time_text, height, parent=None):
+        super().__init__(title, time_text, height, parent)
         self.setStyleSheet(f"""
-                           QFrame {{
+            QFrame {{
                 background-color: {Colors.EVENT_BG};
                 border: 1px solid {Colors.EVENT_BORDER};
-                border-radius: 6px;
-                padding: 2px;
+                border-radius: 4px;
             }}
-            """)
+        """)
+        self.title_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
 
-class SuggestEventLabel(QLabel) :
-    choose_signal = pyqtSignal()  # Signal emitted when the label is clicked
-    def __init__(self, text: str, time: str, height: int, parent = None) :
-        super().__init__(parent)
-        self.setFixedSize(200, height)  
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.layout.setSpacing(5)
-        
-        self.title = QLabel(text, self)
-        self.title.setWordWrap(True)
-        self.title.setStyleSheet(f"""QLabel {{
-                                font-size: 13px;
-                                font-weight: bold;
-                                color: {Colors.TEXT_PRIMARY};
-                                background-color: transparent;
-                                border: none;
-                                padding: 0px;
-                                margin-bottom: 2px;
-                            }}""")
-        self.layout.addWidget(self.title)
-        
-        self.time = QLabel(time, self)
-        self.time.setWordWrap(True)
-        self.time.setStyleSheet(f"""
-                                QLabel {{
-                                    font-size: 11px;
-                                    color: {Colors.TEXT_SECONDARY};
-                                    background-color: transparent;
-                                    border: none;
-                                    padding: 0px;
-                                    margin-top: 2px;
-                                }}
-                                """)
-        self.layout.addWidget(self.time)
-        
-        
-        self.setWordWrap(True)  # 允許長文字自動換行
+class SuggestEventLabel(BaseEventLabel):
+    """建議的日曆行程標籤，可點擊"""
+    choose_signal = pyqtSignal()
+
+    def __init__(self, title, time_text, height, parent=None):
+        super().__init__(title, time_text, height, parent)
         self.setStyleSheet(f"""
-                           QFrame {{
+            QFrame {{
                 background-color: {Colors.SUGGEST_BG};
-                border: 1px dashed {Colors.STATUS_THINKING};
-                border-radius: 6px;
-                padding: 2px;
+                border: 1px dashed {Colors.TASK_ACTIVE_BG};
+                border-radius: 4px;
             }}
-            """)
-        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        
-    def mouseReleaseEvent(self, event) :
-        if event.button() == Qt.MouseButton.LeftButton :
-            self.change_status(selected=True)
-            self.choose_signal.emit()
-        super().mouseReleaseEvent(event)
-    
-    def change_status(self, selected: bool) :
-        if selected :
-            self.setStyleSheet(f"""
-                               QLabel {{
-                    background-color: {Colors.SELECTED_BG};
-                    color: {Colors.TEXT_PRIMARY};
-                    border: 1px solid {Colors.STATUS_THINKING};
-                    border-radius: 6px;
-                    padding: 2px;
-                    font-size: 12px;
-                }}
-                """)
-        else :
-            self.setStyleSheet(f"""
-                               QLabel {{
-                    background-color: {Colors.SUGGEST_BG};
-                    color: {Colors.TEXT_SECONDARY};
-                    border: 1px dashed {Colors.STATUS_THINKING};
-                    border-radius: 6px;
-                    padding: 2px;
-                    font-size: 12px;
-                }}
-                """)
+            QFrame:hover {{
+                background-color: {Colors.SELECTED_BG};
+            }}
+        """)
+        self.title_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
+
+    def mousePressEvent(self, event):
+        self.choose_signal.emit()
+        super().mousePressEvent(event)
