@@ -32,6 +32,7 @@ class MainWindow(QMainWindow):
         self.auto_fade_timer = QTimer(self)
         self.auto_fade_timer.setInterval(5000)
         self.auto_fade_timer.timeout.connect(self.fade_out)
+        self.auto_fade_timer.setSingleShot(True) # 設為單次觸發，避免重複播放動畫
         
         self.text_input = TextInput(self)
         self.voice_button = VoiceButton(self)

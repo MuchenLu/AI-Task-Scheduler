@@ -25,8 +25,13 @@ class TaskStateManager(QObject) :
             text (str): Transcribe result.
         """
         intents = llm_client.analyze_intent(text)
-        
-        for intent in intents :
+
+        if not intents:
+            logger.error("Failed to analyze user intent or intent is empty.")
+            self.error_info.emit("抱歉，我無法理解您的指令。")
+            return
+
+        for intent in intents:
             match intent.get("intent") :
                 case "ADD_TASK" :
                     content = intent.get("content")
