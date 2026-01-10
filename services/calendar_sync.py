@@ -82,7 +82,8 @@ class CalendarService :
                                                             timeMin = start,
                                                             timeMax = end,
                                                             singleEvents = True,
-                                                            orderBy = "startTime").execute().get("items", [])
+                                                            orderBy = "startTime",
+                                                            eventTypes = ["default"]).execute().get("items", [])
             except :
                 logger.warning("Get personal events failed.")
         if calendar_ids[1] :
@@ -91,7 +92,8 @@ class CalendarService :
                                                             timeMin = start,
                                                             timeMax = end,
                                                             singleEvents = True,
-                                                            orderBy = "startTime").execute().get("items", [])
+                                                            orderBy = "startTime",
+                                                            eventTypes = ["default"]).execute().get("items", [])
             except :
                 logger.warning("Get school events failed.")
         if calendar_ids[2] :
@@ -100,7 +102,8 @@ class CalendarService :
                                                         timeMin = start,
                                                         timeMax = end,
                                                         singleEvents = True,
-                                                        orderBy = "startTime").execute().get("items", [])
+                                                        orderBy = "startTime",
+                                                        eventTypes = ["default"]).execute().get("items", [])
             except :
                 logger.warning("Get task events failed.")
         
