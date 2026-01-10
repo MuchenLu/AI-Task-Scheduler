@@ -138,14 +138,27 @@ class MainWindow(QMainWindow):
         self.hide()
 
     def show_calendar_view(self):
-        """Display the calendar view with schedule suggestions."""
+        """顯示日曆視圖，並根據內容動態調整大小。"""
         self.reset()
         self.text_input.hide()
         self.voice_button.hide()
         self.task_view.hide()
 
-        self.setFixedSize(self.size_set["calendar"][0], self.size_set["calendar"][1])
+        # 確保 CalendarView 已經更新內容
         self.calendar_view.show()
+        
+        # 強制佈局即時計算
+        self.calendar_view.layout.activate()
+        content_size = self.calendar_view.layout.sizeHint()
+
+        # 計算合理的視窗大小 (給予邊距緩衝)
+        new_width = min(content_size.width() + 40, self.screen.width() - 100)
+        new_height = min(content_size.height() + 60, self.screen.height() - 100)
+        
+        # 限制最小與最大範圍，避免視窗太小或太大
+        self.setFixedSize(max(400, new_width), max(300, new_height))
+        self.calendar_view.setFixedSize(self.width(), self.height())
+        
         self.move_to_corner()
 
     def handle_schedule_selection(self, schedule):
