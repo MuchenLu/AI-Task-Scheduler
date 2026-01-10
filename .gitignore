@@ -1,4 +1,9 @@
 .venv/
 .env
-data/*
+data/history
+data/*.json
 __pycache__/
+*.wav
+log/
+token.json
+credentials.json

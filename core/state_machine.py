@@ -7,12 +7,13 @@ from services.llm_client import llm_client
 from services.calendar_sync import calendar_service
 
 class TaskStateManager(QObject) :
-    task_info = pyqtSignal(dict) # task info
+    task_info = pyqtSignal(list) # task info
     pause_reason = pyqtSignal(str) # pause reason
     resume = pyqtSignal() # resume signal
     complete_info = pyqtSignal(dict) # complete info
     error_info = pyqtSignal(str) # error info
     user_msg = pyqtSignal(str) # user message
+    calendar_temp = pyqtSignal(list)
     
     def __init__(self) :
         super().__init__()
@@ -28,9 +29,33 @@ class TaskStateManager(QObject) :
         for intent in intents :
             match intent.get("intent") :
                 case "ADD_TASK" :
-                    response = llm_client.sugget_schedule(intent.get("content"))
-                    if response :
-                        self.task_info.emit(response)
+                    content = intent.get("content")
+                    response = llm_client.sugget_schedule(content)
+                    if response and response.get("status") == "success":
+                        # Get suggestions from LLM
+                        recommendations = response.get("recommendations", {})
+                        schedule_list = []
+                        for key, value in recommendations.items():
+                            new_schedule = value.copy()
+                            new_schedule['type'] = 'suggest'
+                            new_schedule['text'] = new_schedule.get('summary', 'No Summary')
+                            schedule_list.append(new_schedule)
+
+                        # Get fixed events from calendar to display alongside suggestions
+                        due_date = content.get("due_date")
+                        events_tuple = calendar_service.get_calendar_events("all", end=due_date)
+                        for event_list in events_tuple:
+                            for event in event_list:
+                                if 'dateTime' in event.get('start', {}): # Filter out all-day events
+                                    schedule_list.append({
+                                        'text': event.get('summary', 'No Title'),
+                                        'start': event['start'],
+                                        'end': event['end'],
+                                        'type': 'fixed'
+                                    })
+                        self.task_info.emit(schedule_list)
+                    elif response and response.get("reason"):
+                        self.error_info.emit(response.get("reason"))
                     else :
                         self.error_info.emit("無法新增任務，請稍後再試")
                 case "START_TASK" :

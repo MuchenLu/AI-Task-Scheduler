@@ -19,7 +19,7 @@ You must process the raw history to infer the user's "biological chronotype" and
     - `task_name`
     - `start_time` & `end_time`
     - `status` ("COMPLETED", "FAILED")
-    - `logs`: An array of events (e.g., `{"event": "PAUSE", "reason": "tired", "time": "..."}`).
+    - `logs`: An array of events (e.g., `{{'event': 'PAUSE', 'reason': 'tired', 'time': '...'}}`).
     - `actual_duration`
 
 ## 3. Scheduling Algorithm
@@ -253,7 +253,7 @@ Classify each action into one of these intents and fill the `content` object:
 
 # Output Format
 Return **ONLY** a valid **JSON Array** (List of Objects).
-Each object MUST strictly follow the `{ "intent": "...", "content": { ... } }` structure.
+Each object MUST strictly follow the `{{ "intent": "...", "content": {{ ... }} }}` structure.
 
 ---
 **INPUT DATA SECTION**

@@ -90,7 +90,7 @@ class LLMClient :
         current_time = datetime.datetime.now(pytz.timezone('Asia/Taipei')).isoformat(timespec = "seconds")
         file = config.DATA_DIR / "current_task.json"
         existing_tasks_db = db.get_current_task()
-        calendar_events = calendar_service.get_calendar_events()
+        calendar_events = calendar_service.get_calendar_events('all')
         
         prompt = USER_INTENT_PROMPT.format(current_time = current_time,
                                            calendar_events = calendar_events,

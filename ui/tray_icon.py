@@ -24,15 +24,15 @@ class TrayIcon(QSystemTrayIcon) :
         self.menu.addAction(self.action_quit)
         
         self.setContextMenu(self.menu)
+        
+        self.activated.connect(self.on_activated)
     
     def on_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
             self.wake_up_app()
     
     def wake_up_app(self):
-        self.main_window.show()
-        self.main_window.wake_up() 
-        self.main_window.activateWindow()
+        self.main_window.show_and_raise()
 
     def quit_app(self):
-        QCoreApplication.instance().quit()
+        QApplication.instance().quit()

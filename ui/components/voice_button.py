@@ -11,7 +11,7 @@ class VoiceButton(QLabel) :
         self.setMovie(self.movie)
         self.movie.start()
         self.setScaledContents(True)
-        self.setFixedSize(200, 200)
+        self.setFixedSize(100, 100)
         self.movie.stop()
         self.movie.jumpToFrame(0)
     

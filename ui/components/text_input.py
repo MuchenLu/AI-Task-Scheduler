@@ -7,7 +7,7 @@ class TextInput(QTextEdit) :
     
     def __init__(self, parent = None) :
         super().__init__(parent)
-        self.setFixedSize("350x90")
+        self.setFixedSize(350, 90)
         self.setStyleSheet("""
             QTextEdit {
                 background-color: rgba(255, 255, 255, 0.7);

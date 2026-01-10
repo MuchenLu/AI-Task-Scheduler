@@ -36,24 +36,29 @@ class AIProcessorWorker(QThread) :
     
     def __init__(self) :
         super().__init__()
+        self.audio_path = None
+        self.text = None
     
     def set_var(self, var_type: Literal["audio", "text"], var: str) :
         if var_type == "audio" :
             self.audio_path = var
         elif var_type == "text" :
             self.text = var
-        
     
     def run(self) :
-        logger.debug("start AI processor.")
-        if self.audio_path :
-            self.text = audio_manager.transcribe(self.audio_path)
-        
-        if self.text :
-            task_state_manager.process_voice(self.text)
-        else :
-            task_state_manager.error_info.emit("Please repeat again.")
-        
-        self.audio_path = None
-        self.text = None
-        self.finished.emit()
+        try:
+            logger.debug("start AI processor.")
+            if self.audio_path:
+                self.text = audio_manager.transcribe(self.audio_path)
+            
+            if self.text:
+                task_state_manager.process_voice(self.text)
+            else:
+                # Only emit error if we started with an audio path and transcription failed.
+                if self.audio_path:
+                    task_state_manager.error_info.emit("Please repeat again.")
+        finally:
+            # Ensure state is reset and finished signal is emitted
+            self.audio_path = None
+            self.text = None
+            self.finished.emit()
