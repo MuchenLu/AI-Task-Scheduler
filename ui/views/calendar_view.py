@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QHBoxLayout, QScrollArea, QWidget
+from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QHBoxLayout, QScrollArea, QWidget, QLayout
 from PyQt6.QtCore import pyqtSignal, Qt
 from ui.components.calendar_label import FixedEventLabel, SuggestEventLabel
 from ui.styles import Colors
@@ -60,12 +60,12 @@ class CalendarView(QFrame) :
         scroll_area.setWidgetResizable(True)
 
         # 用於滾動內容的容器 widget
-        scroll_content_widget = QWidget()
-        scroll_content_widget.setObjectName("scrollContent")
-        scroll_area.setWidget(scroll_content_widget)
+        self.scroll_content_widget = QWidget()
+        self.scroll_content_widget.setObjectName("scrollContent")
+        scroll_area.setWidget(self.scroll_content_widget)
         
         # 這個佈局才真正持有日曆的欄位
-        self.layout = QHBoxLayout(scroll_content_widget)
+        self.layout = QHBoxLayout(self.scroll_content_widget)
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(8)
         

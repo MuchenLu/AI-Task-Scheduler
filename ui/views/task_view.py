@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLayout
+from PyQt6.QtCore import Qt, QSize
 from ui.components.task_card import TaskCard
 from ui.styles import Colors
 
@@ -11,24 +12,37 @@ class TaskView(QFrame) :
                 border-radius: 20px;
             }}
         """)
+        
         self.layout = QVBoxLayout(self)
+        # 關鍵修正 1：靠上對齊。這能防止任務少時卡片被垂直拉伸
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.layout.setContentsMargins(15, 15, 15, 15)
+        self.layout.setSpacing(10)
+        
+        # 關鍵修正 2：設定佈局約束，讓 Widget 的大小嚴格跟隨佈局內容
+        self.layout.setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
+        
+        # 關鍵修正 3：設定「一張卡片」的基準寬高。
+        # 寬度 300 (卡片寬) + 邊距；高度 120 確保沒內容時也能看到一塊區域
+        self.setMinimumWidth(320)
+        self.setMinimumHeight(150)
     
     def update(self, tasks: list) :
-        if self.layout is not None :
-            while self.layout.count():
-                item = self.layout.takeAt(0)
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
+        # 清除舊內容
+        while self.layout.count():
+            item = self.layout.takeAt(0)
+            if item.widget(): item.widget().deleteLater()
         
-        # 如果 tasks 是 None 或空列表，就直接返回，避免錯誤
+        # 如果沒內容就直接返回，靠 setMinimumHeight 維持基本外觀
         if not tasks:
+            self.layout.activate()
             return
             
-        for task in tasks :
-            # 核心修正：使用 'status' 鍵取代 'is_active'，並用 'summary' 取代 'task_name'，以符合新的資料結構。
-            # 使用 .get() 提供備援值，增加程式碼的穩健性。
+        for task in tasks:
             is_active = task.get("status") == "IN_PROGRESS"
             title = task.get("summary", "無標題任務")
             task_card = TaskCard(title=title, is_active=is_active)
             self.layout.addWidget(task_card)
+        
+        # 強制立刻計算佈局
+        self.layout.activate()
