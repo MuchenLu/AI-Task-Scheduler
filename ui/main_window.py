@@ -25,6 +25,9 @@ class MainWindow(QMainWindow):
         self.setWindowOpacity(0.95)
         self.setStyleSheet(f"QMainWindow {{ background: {Colors.BACKGROUND}; border-radius: 20px; }}")
         
+        # 增加一個狀態旗標，判斷當前是否處於需要使用者互動的模式
+        self.is_interactive = False
+        
         self.size_set = {"record": (200, 200), "text": (350, 90), "task": (300, 600), "calendar": (600, 700)}
         
         self.setFixedSize(self.size_set["task"][0], self.size_set["task"][1])
@@ -96,14 +99,18 @@ class MainWindow(QMainWindow):
             self.move_to_corner()
 
     def change_voice_button(self):
+        # 如果還沒開始錄音，代表即將進入互動模式
+        # 如果正在錄音，代表即將結束互動
+        self.is_interactive = not self.recorder.isRunning()
+
         self.reset()
         self.show_and_raise()
         self.text_input.hide()
         self.task_view.hide()
         self.calendar_view.hide()
 
+
         if not self.recorder.isRunning(): 
-            self.auto_fade_timer.stop()
             self.setFixedSize(self.size_set["record"][0], self.size_set["record"][1])
             self.voice_button.show()
             # 手動將錄音按鈕置中
@@ -118,9 +125,12 @@ class MainWindow(QMainWindow):
             self.recorder.stop()
             self.voice_button.stop_anim()
             self.voice_button.hide()
-            self.auto_fade_timer.start()
+            # 互動結束，手動觸發一次 reset 來啟動計時器
+            self.reset()
 
     def change_task(self):
+        # 任務列表是純顯示，屬於非互動模式
+        self.is_interactive = False
         self.reset()
         self.show_and_raise()
         self.text_input.hide()
@@ -141,6 +151,9 @@ class MainWindow(QMainWindow):
 
     def show_calendar_view(self):
         """顯示日曆視圖，並根據內容動態調整大小。"""
+        # 日曆視圖需要使用者選擇，屬於互動模式
+        self.is_interactive = True
+
         self.reset()
         self.text_input.hide()
         self.voice_button.hide()
@@ -167,9 +180,7 @@ class MainWindow(QMainWindow):
         """處理使用者選擇的排程，將其新增至日曆並更新視圖。"""
         print(f"使用者選擇的排程: {schedule}")
 
-        # 根據使用者指示，所有從建議排程新增的事件都應歸類到 'task' 日曆。
-        # 此處我們從設定檔讀取，並提供 'task' 作為備用值。
-        calendar_id = getattr(config, 'TASK_CALENDAR_ID', 'task')
+        calendar_id = 'task'
         # 根據選擇的排程準備 Google Calendar API 的事件主體。
         event_body = {
             "summary": schedule['text'],
@@ -189,6 +200,7 @@ class MainWindow(QMainWindow):
             print(f"新增事件至日曆失敗。狀態碼: {status_code}")
 
         # 最後，切換回任務視圖。
+        self.is_interactive = False
         self.change_task()
 
     def closeEvent(self, event):
@@ -205,7 +217,11 @@ class MainWindow(QMainWindow):
         if self.isHidden():
             self.show()
             
-        self.auto_fade_timer.start()
+        # 根據互動旗標決定是否啟動或停止淡出計時器
+        if self.is_interactive:
+            self.auto_fade_timer.stop()
+        else:
+            self.auto_fade_timer.start()
 
     def fade_out(self):
         self.animation = QPropertyAnimation(self, b"windowOpacity")

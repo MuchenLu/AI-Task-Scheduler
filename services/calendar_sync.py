@@ -4,6 +4,7 @@ import pytz
 from typing import Literal
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from config import config, ROOT_DIR
@@ -53,66 +54,59 @@ class CalendarService :
         Returns:
             list: return a single list of all events from the specified calendars.
         """
-        try :
-            datetime.datetime.strptime(start, "%Y-%m-%dT%H:%M:%S")
-        except :
-            logger.warning(f"Start time format wrong: {start}")
-        
-        try :
-            datetime.datetime.strptime(end, "%Y-%m-%dT%H:%M:%S")
-        except :
-            logger.warning(f"End time format wrong: {end}")
-        
+        # 防錯增強：確保 start/end 包含時區，否則 Google API 會回傳 400 Bad Request。
+        # 之前的 strptime 檢查不正確，因為它無法處理時區，所以移除。
+        if start and isinstance(start, str) and "+" not in start and "Z" not in start:
+            logger.warning(f"Start time '{start}' is missing timezone. Appending +08:00.")
+            start += "+08:00"
+        if end and isinstance(end, str) and "+" not in end and "Z" not in end:
+            logger.warning(f"End time '{end}' is missing timezone. Appending +08:00.")
+            end += "+08:00"
+
         all_events = []
-        match calendar_id :
-            case "all" :
-                calendar_ids = (True, True, True)
-            case "personal" :
-                calendar_ids = (True, False, False)
-            case "school" :
-                calendar_ids = (False, True, False)
-            case "task" :
-                calendar_ids = (False, False, True)
-        
-        if calendar_ids[0] :
-            try :
-                personal_events = self.service.events().list(calendarId = config.PERSONAL_CALENDAR,
-                                                            timeMin = start,
-                                                            timeMax = end,
-                                                            singleEvents = True,
-                                                            orderBy = "startTime",
-                                                            eventTypes = ["default"]).execute().get("items", [])
-                for event in personal_events:
-                    event['type'] = 'personal'
+        calendar_ids_to_fetch = (False, False, False) # (personal, school, task)
+        match calendar_id:
+            case "all":
+                calendar_ids_to_fetch = (True, True, True)
+            case "personal":
+                calendar_ids_to_fetch = (True, False, False)
+            case "school":
+                calendar_ids_to_fetch = (False, True, False)
+            case "task":
+                calendar_ids_to_fetch = (False, False, True)
+
+        if calendar_ids_to_fetch[0]:
+            try:
+                personal_events = self.service.events().list(calendarId=config.PERSONAL_CALENDAR, timeMin=start, timeMax=end, singleEvents=True, orderBy="startTime", eventTypes=["default"]).execute().get("items", [])
+                for event in personal_events: event['type'] = 'personal'
                 all_events.extend(personal_events)
-            except :
-                logger.warning("Get personal events failed.")
-        if calendar_ids[1] :
-            try :
-                school_events = self.service.events().list(calendarId = config.SCHOOL_CALENDAR,
-                                                            timeMin = start, 
-                                                            timeMax = end, 
-                                                            singleEvents = True, 
-                                                            orderBy = "startTime", 
-                                                            eventTypes = ["default"]).execute().get("items", [])
-                for event in school_events:
-                    event['type'] = 'school'
+                logger.info(f"Successfully fetched {len(personal_events)} events from 'personal' calendar.")
+            except HttpError as e:
+                logger.error(f"An HTTP error occurred when fetching 'personal' calendar: {e}")
+            except Exception as e:
+                logger.error(f"A general error occurred when fetching 'personal' calendar: {e}")
+
+        if calendar_ids_to_fetch[1]:
+            try:
+                school_events = self.service.events().list(calendarId=config.SCHOOL_CALENDAR, timeMin=start, timeMax=end, singleEvents=True, orderBy="startTime", eventTypes=["default"]).execute().get("items", [])
+                for event in school_events: event['type'] = 'school'
                 all_events.extend(school_events)
-            except :
-                logger.warning("Get school events failed.")
-        if calendar_ids[2] :
-            try :
-                task_events = self.service.events().list(calendarId = config.TASK_CALENDAR,
-                                                        timeMin = start, 
-                                                        timeMax = end, 
-                                                        singleEvents = True, 
-                                                        orderBy = "startTime", 
-                                                        eventTypes = ["default"]).execute().get("items", [])
-                for event in task_events:
-                    event['type'] = 'task'
+                logger.info(f"Successfully fetched {len(school_events)} events from 'school' calendar.")
+            except HttpError as e:
+                logger.error(f"An HTTP error occurred when fetching 'school' calendar: {e}")
+            except Exception as e:
+                logger.error(f"A general error occurred when fetching 'school' calendar: {e}")
+
+        if calendar_ids_to_fetch[2]:
+            try:
+                task_events = self.service.events().list(calendarId=config.TASK_CALENDAR, timeMin=start, timeMax=end, singleEvents=True, orderBy="startTime", eventTypes=["default"]).execute().get("items", [])
+                for event in task_events: event['type'] = 'task'
                 all_events.extend(task_events)
-            except :
-                logger.warning("Get task events failed.")
+                logger.info(f"Successfully fetched {len(task_events)} events from 'task' calendar.")
+            except HttpError as e:
+                logger.error(f"An HTTP error occurred when fetching 'task' calendar: {e}")
+            except Exception as e:
+                logger.error(f"A general error occurred when fetching 'task' calendar: {e}")
         
         return all_events
     
@@ -127,16 +121,18 @@ class CalendarService :
             int: Status code.
         """
         event["reminders"] = {"useDefault": False, "overrides": [{"method": "popup", "minutes": 0}]}
-        match calendar_id :
-            case "personal" :
-                calendar_id = config.PERSONAL_CALENDAR
-            case "school" :
-                calendar_id = config.SCHOOL_CALENDAR
-            case "task" :
-                calendar_id = config.TASK_CALENDAR
+        
+        target_calendar_id = None
+        match calendar_id:
+            case "personal":
+                target_calendar_id = config.PERSONAL_CALENDAR
+            case "school":
+                target_calendar_id = config.SCHOOL_CALENDAR
+            case "task":
+                target_calendar_id = config.TASK_CALENDAR
         
         try :
-            self.service.events().insert(calendarId = calendar_id, body = event).execute()
+            self.service.events().insert(calendarId=target_calendar_id, body=event).execute()
             logger.info("Add event success.")
             return 200
         except Exception as e :

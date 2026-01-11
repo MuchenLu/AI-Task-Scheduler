@@ -54,24 +54,47 @@ class TaskStateManager(QObject) :
                             fetch_start = f"{base_date}T00:00:00+08:00"
                             fetch_end = f"{base_date}T23:59:59+08:00"
                         
-                        # 抓取 Google 日曆事件（包含個人與學校等所有日曆）
+                        # 修正：同時抓取 Google 日曆與本地 DB 任務
                         all_events = calendar_service.get_calendar_events(
                             "all", 
                             start=fetch_start, 
                             end=fetch_end
                         )
+                        current_db_tasks = db.get_current_task() or [] # 本地任務
 
-                        # 處理抓回來的固定行程
+                        # A. 處理 Google 日曆事件 (相容全天事件)
                         if all_events:
                             for event in all_events:
-                                # 僅顯示具有具體時間的事件 (排除全天事件)
-                                if 'dateTime' in event.get('start', {}):
+                                start_data = event.get('start', {})
+                                end_data = event.get('end', {})
+                                
+                                start_time = start_data.get('dateTime')
+                                end_time = end_data.get('dateTime')
+
+                                # 如果是全天事件，手動設定開始與結束時間
+                                if not start_time and 'date' in start_data:
+                                    start_date = start_data['date']
+                                    start_time = f"{start_date}T00:00:00+08:00"
+                                    # Google API 的全天事件 end date 是不包含的，所以結束時間設為當天 23:59
+                                    end_time = f"{start_date}T23:59:59+08:00"
+
+                                if start_time and end_time:
                                     schedule_list.append({
                                         'text': event.get('summary', '無標題'),
-                                        'start': event['start'],
-                                        'end': event['end'],
+                                        'start': {'dateTime': start_time},
+                                        'end': {'dateTime': end_time},
                                         'type': 'fixed'
                                     })
+                        
+                        # B. 修正：將本地 DB 中的任務也放入日曆視圖
+                        for db_task in current_db_tasks:
+                            if db_task.get('status') != 'COMPLETED':
+                                schedule_list.append({
+                                    'text': f"[本地] {db_task.get('task_name')}",
+                                    'start': {'dateTime': db_task.get('start_time') or fetch_start},
+                                    'end': {'dateTime': db_task.get('due_date') or fetch_end},
+                                    'type': 'fixed'
+                                })
                         
                         logger.info(f"發送行程列表，共 {len(schedule_list)} 個事件")
                         self.task_info.emit(schedule_list)
@@ -81,7 +104,7 @@ class TaskStateManager(QObject) :
                         self.error_info.emit("無法新增任務，請稍後再試")
 
                 case "START_TASK":
-                    response = db.get_current_task()
+                    response = db.get_current_task() or []
                     for task in response:
                         if task.get("status") == "IN_PROGRESS":
                             self.error_info.emit(f"目前已有 {task.get('task_name')} 進行中，無法開始新任務")
@@ -99,7 +122,7 @@ class TaskStateManager(QObject) :
                     db.save_current_task(response)
 
                 case "PAUSE_TASK":
-                    response = db.get_current_task()
+                    response = db.get_current_task() or []
                     found = False
                     for task in response:
                         if intent.get("content").get("task_name") == task.get("task_name"):
@@ -113,7 +136,7 @@ class TaskStateManager(QObject) :
                     db.save_current_task(response)
 
                 case "RESUME_TASK":
-                    response = db.get_current_task()
+                    response = db.get_current_task() or []
                     for task in response:
                         if task.get("status") == "IN_PROGRESS":
                             self.error_info.emit(f"目前已有 {task.get('task_name')} 進行中，無法恢復任務")
@@ -132,7 +155,7 @@ class TaskStateManager(QObject) :
                         self.user_msg.emit("未找到任務")
 
                 case "COMPLETE_TASK":
-                    response = db.get_current_task()
+                    response = db.get_current_task() or []
                     for task in response:
                         if intent.get("content").get("task_name") == task.get("task_name"):
                             task["status"] = "COMPLETED"
@@ -145,7 +168,7 @@ class TaskStateManager(QObject) :
                             break
 
                 case "QUERY_TASK":
-                    subtasks = db.get_current_task()
+                    subtasks = db.get_current_task() or []
                     self.user_msg.emit(str(subtasks))
 
 task_state_manager = TaskStateManager()

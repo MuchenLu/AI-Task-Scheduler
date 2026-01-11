@@ -2,8 +2,7 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
-from utils.logger import setup_logger, logger
-
+from utils.logger import logger
 ROOT_DIR = Path(__file__).parent.absolute()
 load_dotenv(ROOT_DIR / ".env")
 
@@ -15,9 +14,6 @@ class Config :
     
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    setup_logger(LOG_DIR)
-    
-    # TODO: change to read env variables with no stable amount
     PERSONAL_CALENDAR = os.getenv("PERSONAL_CALENDAR", None)
     SCHOOL_CALENDAR = os.getenv("SCHOOL_CALENDAR", None)
     TASK_CALENDAR = os.getenv("TASK_CALENDAR", None)
@@ -26,7 +22,6 @@ class Config :
     
     @classmethod
     def validate(cls) :
-        # TODO: change to read env variables with no stable amount
         missings = []
         if cls.PERSONAL_CALENDAR is None :
             missings.append("PERSONAL_CALENDAR")

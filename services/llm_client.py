@@ -44,12 +44,17 @@ class LLMClient :
         Args:
             command (dict): Command has been AI format.
         """
-        if command is None :
+        if command is None:
             logger.warning("command is None.")
+            return None
         
         now = datetime.datetime.now(pytz.timezone('Asia/Taipei')).isoformat(timespec = "seconds")
-        calendar_events = calendar_service.get_calendar_events("all", end = command.get("due_date"))
-        active_tasks_db = db.get_current_task()
+
+        # 修正：確保 end 時間符合 RFC 3339 格式，避免 Google API 400 錯誤
+        due_date = command.get("due_date")
+        fetch_end = due_date if due_date and "T" in due_date else f"{due_date}T23:59:59+08:00" if due_date else None
+        calendar_events = calendar_service.get_calendar_events("all", end=fetch_end)
+        active_tasks_db = db.get_current_task() or []
         historical_logs = db.get_history(3)
         
         prompt = SCHEDULER_PROMPT.format(current_time = now,
@@ -91,7 +96,7 @@ class LLMClient :
         """
         current_time = datetime.datetime.now(pytz.timezone('Asia/Taipei')).isoformat(timespec = "seconds")
         file = config.DATA_DIR / "current_task.json"
-        existing_tasks_db = db.get_current_task()
+        existing_tasks_db = db.get_current_task() or []
         calendar_events = calendar_service.get_calendar_events('all')
         
         prompt = USER_INTENT_PROMPT.format(current_time = current_time,
@@ -119,7 +124,7 @@ class LLMClient :
         if incoming_action is None :
             logger.warning("command is None.")
         
-        current_active_tasks_json = db.get_current_task()
+        current_active_tasks_json = db.get_current_task() or []
         
         calendar_tasks = calendar_service.get_calendar_events("task")
         
