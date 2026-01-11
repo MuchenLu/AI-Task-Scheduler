@@ -250,7 +250,7 @@ class MainWindow(QMainWindow):
 
     def fade_out(self):
         self.animation = QPropertyAnimation(self, b"windowOpacity")
-        self.animation.setDuration(10000)
+        self.animation.setDuration(3000)
         self.animation.setStartValue(0.95)
         self.animation.setEndValue(0.0)
         self.animation.setEasingCurve(QEasingCurve.Type.OutQuad)

@@ -88,5 +88,13 @@ class AudioManager :
         except Exception as e :
             logger.error(f"Transcribe failed: {e}")
             return None
+        finally:
+            # 核心修正：無論轉錄成功或失敗，都嘗試刪除暫存的音訊檔。
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    logger.info(f"Temporary audio file deleted: {filepath}")
+            except Exception as e:
+                logger.error(f"Failed to delete audio file {filepath}: {e}")
 
 audio_manager = AudioManager()
