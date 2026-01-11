@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSigna
 from ui.workers import RecorderWorker, AIProcessorWorker
 import keyboard
 from core.state_machine import task_state_manager
+from services.calendar_sync import calendar_service
 from data.db_manager import db
 
 class MainWindow(QMainWindow):
@@ -162,8 +163,40 @@ class MainWindow(QMainWindow):
         self.move_to_corner()
 
     def handle_schedule_selection(self, schedule):
-        """Handle the user's choice of a schedule."""
-        print(f"User selected schedule: {schedule}")
+        """處理使用者選擇的排程，將其新增至日曆並更新視圖。"""
+        print(f"使用者選擇的排程: {schedule}")
+
+        # task_state_manager 應保留初始指令的上下文，
+        # 其中包含要新增事件的目標日曆 ID。
+        # 由於 core/state_machine.py 未提供，我們假設此上下文儲存在一個屬性中。
+        # 這個屬性名稱 (command_context) 是一個基於現有程式碼的合理推測。
+        command_context = getattr(task_state_manager, 'command_context', None)
+
+        if not command_context or 'calendar_id' not in command_context:
+            print("邏輯錯誤：在 task_state_manager 的上下文中找不到 'calendar_id'。無法新增事件。")
+            # 備用方案：顯示任務列表
+            self.change_task()
+            return
+
+        # 根據選擇的排程準備 Google Calendar API 的事件主體。
+        event_body = {
+            "summary": schedule['text'],
+            "start": schedule['start'],
+            "end": schedule['end']
+        }
+
+        # 使用 calendar_service 新增事件。
+        status_code = calendar_service.add_event(
+            calendar_id=command_context['calendar_id'],
+            event=event_body
+        )
+
+        if status_code == 200:
+            print(f"成功將事件 '{event_body['summary']}' 新增至日曆 '{command_context['calendar_id']}'。")
+        else:
+            print(f"新增事件至日曆失敗。狀態碼: {status_code}")
+
+        # 最後，切換回任務視圖。
         self.change_task()
 
     def closeEvent(self, event):

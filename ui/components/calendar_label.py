@@ -4,10 +4,10 @@ from ui.styles import Colors
 
 class BaseEventLabel(QFrame):
     """
-    一個基礎的事件標籤，包含標題和時間。
+    一個基礎的事件標籤，僅包含標題。
     透過在內部佈局中設定 padding 來解決文字被邊框裁切的問題。
     """
-    def __init__(self, title, time_text, height, parent=None):
+    def __init__(self, title, height, parent=None):
         super().__init__(parent)
         # 設定最小高度，但允許內容稍微撐開以容納邊距
         self.setMinimumHeight(height)
@@ -22,18 +22,13 @@ class BaseEventLabel(QFrame):
         self.title_label.setWordWrap(True)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        self.time_label = QLabel(time_text)
-        self.time_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 11px;")
-        self.time_label.setAlignment(Qt.AlignmentFlag.AlignBottom)
-
         layout.addWidget(self.title_label)
-        layout.addStretch() # 將時間推到底部
-        layout.addWidget(self.time_label)
+        layout.addStretch() # 將標題推到頂部
 
 class FixedEventLabel(BaseEventLabel):
     """固定的日曆行程標籤"""
-    def __init__(self, title, time_text, height, parent=None):
-        super().__init__(title, time_text, height, parent)
+    def __init__(self, title, height, parent=None):
+        super().__init__(title, height, parent)
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {Colors.EVENT_BG};
@@ -47,8 +42,8 @@ class SuggestEventLabel(BaseEventLabel):
     """建議的日曆行程標籤，可點擊"""
     choose_signal = pyqtSignal()
 
-    def __init__(self, title, time_text, height, parent=None):
-        super().__init__(title, time_text, height, parent)
+    def __init__(self, title, height, parent=None):
+        super().__init__(title, height, parent)
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {Colors.SUGGEST_BG};
