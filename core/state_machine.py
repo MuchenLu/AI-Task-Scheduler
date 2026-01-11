@@ -3,6 +3,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from dateutil.parser import parse
 import pytz
 from config import config
+import uuid
 from utils.logger import logger
 from data.db_manager import db
 from services.llm_client import llm_client
@@ -10,6 +11,7 @@ from services.calendar_sync import calendar_service
 
 class TaskStateManager(QObject) :
     task_info = pyqtSignal(list) # task info
+    show_calendar_signal = pyqtSignal() # 顯示日曆的訊號
     pause_reason = pyqtSignal(str) # pause reason
     resume = pyqtSignal() # resume signal
     complete_info = pyqtSignal(dict) # complete info
@@ -116,74 +118,68 @@ class TaskStateManager(QObject) :
                         
                         # 呼叫統一的方法，傳入建議行程與目標日期
                         self.fetch_and_emit_calendar(suggestions_list, content.get("due_date"))
+                        # 發送訊號，通知 UI 顯示日曆視圖
+                        self.show_calendar_signal.emit()
+
                     elif response and response.get("reason"):
                         self.error_info.emit(response.get("reason"))
                     else:
                         self.error_info.emit("無法新增任務，請稍後再試")
 
-                case "START_TASK":
-                    response = db.get_current_task() or []
-                    for task in response:
-                        if task.get("status") == "IN_PROGRESS":
-                            self.error_info.emit(f"目前已有 {task.get('task_name')} 進行中，無法開始新任務")
-                            return
-                    found = False
-                    for task in response:
-                        if intent.get("content").get("task_name") == task.get("task_name"):
-                            task["status"] = "IN_PROGRESS"
-                            found = True
-                            break
-                    if found:
-                        self.user_msg.emit(f"{task['task_name']} 已開始")
-                    else:
-                        self.user_msg.emit("未找到任務")
-                    db.save_current_task(response)
+                case "START_TASK" | "PAUSE_TASK" | "RESUME_TASK":
+                    logger.info(f"Processing state change intent: {intent.get('intent')}")
+                    
+                    # AI 狀態控制器會處理所有邏輯，包括從 Google Calendar 查找任務
+                    new_task_list = llm_client.change_status(intent)
 
-                case "PAUSE_TASK":
-                    response = db.get_current_task() or []
-                    found = False
-                    for task in response:
-                        if intent.get("content").get("task_name") == task.get("task_name"):
-                            task["status"] = "PAUSED"
-                            found = True
-                            break
-                    if found:
-                        self.user_msg.emit(f"{task['task_name']} 已暫停")
+                    if new_task_list is not None:
+                        db.save_current_task(new_task_list)
+                        logger.info(f"Successfully updated task status. New list: {new_task_list}")
+                        
+                        task_summary = intent.get("content", {}).get("summary", "未知任務")
+                        match intent.get("intent"):
+                            case "START_TASK":
+                                self.user_msg.emit(f"任務 '{task_summary}' 已開始。")
+                            case "PAUSE_TASK":
+                                self.user_msg.emit(f"任務 '{task_summary}' 已暫停。")
+                            case "RESUME_TASK":
+                                self.user_msg.emit(f"任務 '{task_summary}' 已繼續。")
+                                self.resume.emit()
                     else:
-                        self.user_msg.emit("未找到任務")
-                    db.save_current_task(response)
-
-                case "RESUME_TASK":
-                    response = db.get_current_task() or []
-                    for task in response:
-                        if task.get("status") == "IN_PROGRESS":
-                            self.error_info.emit(f"目前已有 {task.get('task_name')} 進行中，無法恢復任務")
-                            return
-                    found = False
-                    for task in response:
-                        if intent.get("content").get("task_name") == task.get("task_name"):
-                            task["status"] = "IN_PROGRESS"
-                            found = True
-                            break
-                    if found:
-                        self.user_msg.emit(f"{task['task_name']} 已恢復")
-                        db.save_current_task(response)
-                        self.resume.emit()
-                    else:
-                        self.user_msg.emit("未找到任務")
+                        self.error_info.emit("AI 狀態控制器處理失敗，無法變更任務狀態。")
 
                 case "COMPLETE_TASK":
-                    response = db.get_current_task() or []
-                    for task in response:
-                        if intent.get("content").get("task_name") == task.get("task_name"):
-                            task["status"] = "COMPLETED"
-                            task["end_time"] = datetime.datetime.now().isoformat()
-                            db.archive_task()
-                            response.remove(task)
-                            db.save_current_task(response)
-                            self.complete_info.emit(task)
-                            self.user_msg.emit(f"任務完成：{task['task_name']}")
-                            break
+                    logger.info(f"Processing state change intent: {intent.get('intent')}")
+                    
+                    # AI 狀態控制器會將任務標記為已完成
+                    new_task_list_from_ai = llm_client.change_status(intent)
+
+                    if new_task_list_from_ai is not None:
+                        task_to_archive = None
+                        # 在 AI 回傳的新列表中找到剛剛被標記為完成的任務
+                        for task in new_task_list_from_ai:
+                            if task.get("status") == "COMPLETED":
+                                task_to_archive = task
+                                break
+                        
+                        if task_to_archive:
+                            # 歸檔已完成的任務
+                            db.archive_task(task_to_archive)
+                            
+                            # 建立最終的當前任務列表 (移除已歸檔的任務)
+                            final_task_list = [t for t in new_task_list_from_ai if t.get("task_id") != task_to_archive.get("task_id")]
+                            db.save_current_task(final_task_list)
+                            
+                            self.complete_info.emit(task_to_archive)
+                            self.user_msg.emit(f"任務 '{task_to_archive.get('summary')}' 已完成。")
+                            logger.info(f"Task '{task_to_archive.get('summary')}' completed and archived.")
+                        else:
+                            # 這種情況不應該發生，但作為防錯，我們仍然儲存 AI 的狀態
+                            db.save_current_task(new_task_list_from_ai)
+                            logger.warning("AI processed COMPLETE_TASK but no task was marked as COMPLETED in the response.")
+                            self.error_info.emit("無法確認完成的任務，但狀態已更新。")
+                    else:
+                        self.error_info.emit("AI 狀態控制器處理失敗，無法完成任務。")
 
                 case "QUERY_TASK":
                     # 修正：使用者查詢時，除了回話，也要更新日曆視圖

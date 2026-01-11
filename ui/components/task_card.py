@@ -5,7 +5,8 @@ from ui.styles import Colors
 
 class TaskCard(QFrame) :
     def __init__(self, title: str, is_active: bool = True, parent = None) :
-        super().__init__(parent, parent)
+        # 核心修正：QFrame 的建構子最多只應傳入 parent，第二個參數是 window flags，不應傳入 parent。
+        super().__init__(parent)
         self.setObjectName("TaskCard")
         self.setFixedWidth(300)
         

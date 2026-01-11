@@ -32,8 +32,10 @@ class LLMClient :
         """
         try :
             text = text.replace("```json", "").replace("```", "").strip()
-            text = ast.literal_eval(text)
-            return text
+            # 核心修正：使用 json.loads() 取代 ast.literal_eval()。
+            # json.loads() 是專門用來解析標準 JSON 字串的，可以正確處理 null, true, false 等值，
+            # 而 ast.literal_eval() 只能處理 Python 的字面量 (None, True, False)，當 AI 回傳標準 JSON 時會失敗。
+            return json.loads(text)
         except Exception as e :
             logger.error(f"Error cleaning response: {e}")
             return None
@@ -118,32 +120,35 @@ class LLMClient :
             logger.error("Clean AI response failed or ai response wrong.")
             return None
     
-    def change_status(self, incoming_action: dict) -> int :
+    def change_status(self, incoming_action: dict) -> list | None :
         """Change doing task's status
 
         Args:
             incoming_action (dict): Intent response dict.
 
         Returns:
-            int: status code
+            list | None: The updated list of tasks, or None on failure.
         """
         if incoming_action is None :
             logger.warning("command is None.")
-        
+            return None
+
+        current_time = datetime.datetime.now(pytz.timezone('Asia/Taipei')).isoformat()
         current_active_tasks_json = db.get_current_task() or []
         
         calendar_tasks = calendar_service.get_calendar_events("task")
         
-        prompt = STATE_CONTROLLER_PROMPT.format(current_active_tasks_json = current_active_tasks_json,
+        prompt = STATE_CONTROLLER_PROMPT.format(current_time=current_time,
+                                                 current_active_tasks_json = current_active_tasks_json,
                                                  calendar_tasks = calendar_tasks,
                                                  incoming_action = incoming_action)
         result = self._clean_response(self.model.generate_content(prompt).text)
         
         if result :
-            logger.info(f"Has changed specific task status.")
-            return 200
+            logger.info(f"AI has processed the state change. New state: {result}")
+            return result
         else :
-            logger.error("Change status failed.")
-            return 500
+            logger.error("AI failed to process the state change.")
+            return None
 
 llm_client = LLMClient()
