@@ -59,18 +59,8 @@ class LLMClient :
         
         if result :
             logger.info(f"AI clean response: {result}")
-        if result:
-            # 如果 AI 回應中包含建議排程，則將原始指令中的 calendar_id 注入，
-            # 以確保它能被傳遞到 UI 層進行選擇。
-            if 'schedules' in result and 'calendar_id' in command:
-                for schedule in result['schedules']:
-                    schedule['calendar_id'] = command['calendar_id']
-                logger.info(f"AI response with injected calendar_id: {result}")
-            else:
-                logger.info(f"AI clean response: {result}")
             return result
         else :
-        else:
             logger.error(f"Clean AI response failed or ai response wrong.")
             return None
     
