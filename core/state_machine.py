@@ -55,18 +55,17 @@ class TaskStateManager(QObject) :
                             fetch_end = f"{base_date}T23:59:59+08:00"
                         
                         # 抓取 Google 日曆事件（包含個人與學校等所有日曆）
-                        events_tuple = calendar_service.get_calendar_events(
+                        all_events = calendar_service.get_calendar_events(
                             "all", 
                             start=fetch_start, 
                             end=fetch_end
                         )
 
                         # 處理抓回來的固定行程
-                        for event_list in events_tuple:
-                            if not event_list: continue
-                            for event in event_list:
+                        if all_events:
+                            for event in all_events:
                                 # 僅顯示具有具體時間的事件 (排除全天事件)
-                                if 'dateTime' in event.get('start', {}): 
+                                if 'dateTime' in event.get('start', {}):
                                     schedule_list.append({
                                         'text': event.get('summary', '無標題'),
                                         'start': event['start'],

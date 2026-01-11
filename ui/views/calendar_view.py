@@ -3,6 +3,7 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from ui.components.calendar_label import FixedEventLabel, SuggestEventLabel
 from ui.styles import Colors
 from datetime import datetime
+import pytz
 from core.state_machine import task_state_manager
 from services.calendar_sync import calendar_service
 from utils.logger import logger
@@ -75,13 +76,18 @@ class CalendarView(QFrame) :
         if not schedules:
             return
 
-        def to_naive(iso_str):
+        def to_local_naive(iso_str):
             try:
+                # 1. 處理 Z 並轉成 aware datetime
                 dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
-                return dt.replace(tzinfo=None)
+                # 2. 轉換到台北時區
+                taipei_tz = pytz.timezone('Asia/Taipei')
+                dt_taipei = dt.astimezone(taipei_tz)
+                # 3. 再轉回 naive 以供 UI 繪製邏輯使用
+                return dt_taipei.replace(tzinfo=None)
             except Exception as e:
-                logger.error(f"Time conversion error: {e}")
-                return datetime.now().replace(tzinfo=None)
+                logger.error(f"Time conversion error: {e}, using current local time as fallback.")
+                return datetime.now()
 
         START_HOUR = 0
         END_HOUR = 24
@@ -108,7 +114,7 @@ class CalendarView(QFrame) :
         self.layout.addLayout(time_ruler_layout)
 
         # --- 3. 建立日期與事件欄位 (Columns) ---
-        all_dates = sorted(list({to_naive(s['start']['dateTime']).date() for s in schedules}))
+        all_dates = sorted(list({to_local_naive(s['start']['dateTime']).date() for s in schedules}))
         
         for date in all_dates:
             date_column = QVBoxLayout()
@@ -122,15 +128,15 @@ class CalendarView(QFrame) :
             date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             date_column.addWidget(date_label)
             
-            today_schedules = [s for s in schedules if to_naive(s['start']['dateTime']).date() == date]
-            today_schedules.sort(key=lambda x: to_naive(x['start']['dateTime']))
+            today_schedules = [s for s in schedules if to_local_naive(s['start']['dateTime']).date() == date]
+            today_schedules.sort(key=lambda x: to_local_naive(x['start']['dateTime']))
 
             # 渲染基準點：當天 00:00
             current_render_pos = datetime.combine(date, datetime.min.time()).replace(hour=START_HOUR)
 
             for schedule in today_schedules:
-                start = to_naive(schedule['start']['dateTime'])
-                end = to_naive(schedule['end']['dateTime'])
+                start = to_local_naive(schedule['start']['dateTime'])
+                end = to_local_naive(schedule['end']['dateTime'])
 
                 # A. 填補空白間隔
                 gap_min = (start - current_render_pos).total_seconds() / 60

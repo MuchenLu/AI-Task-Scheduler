@@ -49,11 +49,13 @@ class LLMClient :
         
         now = datetime.datetime.now(pytz.timezone('Asia/Taipei')).isoformat(timespec = "seconds")
         calendar_events = calendar_service.get_calendar_events("all", end = command.get("due_date"))
+        active_tasks_db = db.get_current_task()
         historical_logs = db.get_history(3)
         
         prompt = SCHEDULER_PROMPT.format(current_time = now,
                                          command = command,
                                          calendar_events = calendar_events,
+                                         active_tasks_db = active_tasks_db,
                                          historical_logs = historical_logs)
         result = self._clean_response(self.model.generate_content(prompt).text)
         

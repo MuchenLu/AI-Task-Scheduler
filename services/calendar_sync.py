@@ -43,7 +43,7 @@ class CalendarService :
             logger.critical(f"Google Calendar build failed.")
             return False
     
-    def get_calendar_events(self, calendar_id: Literal["all", "personal", "school", "task"], start: str = datetime.datetime.now(pytz.timezone('Asia/Taipei')).replace(hour=0, minute=0, second=0).isoformat(timespec = "seconds"), end: str = (datetime.datetime.now(pytz.timezone('Asia/Taipei')) + datetime.timedelta(days=7)).replace(hour=23, minute=59, second=59).isoformat(timespec = "seconds")) -> tuple :
+    def get_calendar_events(self, calendar_id: Literal["all", "personal", "school", "task"], start: str = datetime.datetime.now(pytz.timezone('Asia/Taipei')).replace(hour=0, minute=0, second=0).isoformat(timespec = "seconds"), end: str = (datetime.datetime.now(pytz.timezone('Asia/Taipei')) + datetime.timedelta(days=7)).replace(hour=23, minute=59, second=59).isoformat(timespec = "seconds")) -> list :
         """Get specific time spec events.
 
         Args:
@@ -51,7 +51,7 @@ class CalendarService :
             start (str, optional): Set the start time to get calendar events. Defaults to today.
             end (str, optional): Set when to stop getting calendar events. Defaults to 7 days later.
         Returns:
-            tuple: return events like (personal events, school events, task events)
+            list: return a single list of all events from the specified calendars.
         """
         try :
             datetime.datetime.strptime(start, "%Y-%m-%dT%H:%M:%S")
@@ -63,9 +63,7 @@ class CalendarService :
         except :
             logger.warning(f"End time format wrong: {end}")
         
-        personal_events = []
-        school_events = []
-        task_events = []
+        all_events = []
         match calendar_id :
             case "all" :
                 calendar_ids = (True, True, True)
@@ -84,30 +82,39 @@ class CalendarService :
                                                             singleEvents = True,
                                                             orderBy = "startTime",
                                                             eventTypes = ["default"]).execute().get("items", [])
+                for event in personal_events:
+                    event['type'] = 'personal'
+                all_events.extend(personal_events)
             except :
                 logger.warning("Get personal events failed.")
         if calendar_ids[1] :
             try :
                 school_events = self.service.events().list(calendarId = config.SCHOOL_CALENDAR,
-                                                            timeMin = start,
-                                                            timeMax = end,
-                                                            singleEvents = True,
-                                                            orderBy = "startTime",
+                                                            timeMin = start, 
+                                                            timeMax = end, 
+                                                            singleEvents = True, 
+                                                            orderBy = "startTime", 
                                                             eventTypes = ["default"]).execute().get("items", [])
+                for event in school_events:
+                    event['type'] = 'school'
+                all_events.extend(school_events)
             except :
                 logger.warning("Get school events failed.")
         if calendar_ids[2] :
             try :
                 task_events = self.service.events().list(calendarId = config.TASK_CALENDAR,
-                                                        timeMin = start,
-                                                        timeMax = end,
-                                                        singleEvents = True,
-                                                        orderBy = "startTime",
+                                                        timeMin = start, 
+                                                        timeMax = end, 
+                                                        singleEvents = True, 
+                                                        orderBy = "startTime", 
                                                         eventTypes = ["default"]).execute().get("items", [])
+                for event in task_events:
+                    event['type'] = 'task'
+                all_events.extend(task_events)
             except :
                 logger.warning("Get task events failed.")
         
-        return (personal_events, school_events, task_events)
+        return all_events
     
     def add_event(self, calendar_id: Literal["personal", "school", "task"], event: dict) -> int :
         """Add events to assign calendar.
