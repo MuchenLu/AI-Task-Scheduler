@@ -52,7 +52,13 @@ class LLMClient :
 
         # 修正：確保 end 時間符合 RFC 3339 格式，避免 Google API 400 錯誤
         due_date = command.get("due_date")
-        fetch_end = due_date if due_date and "T" in due_date else f"{due_date}T23:59:59+08:00" if due_date else None
+        fetch_end = None
+        if due_date:
+            # 關鍵修正：只取 due_date 的日期部分 (前10個字元)，以建立一個格式正確的 RFC3339 時間字串。
+            # 這可以防止當 due_date 包含時間 (如 "2026-01-16 23:59:59") 時，產生格式錯誤的字串。
+            base_date_str = due_date[:10]
+            fetch_end = f"{base_date_str}T23:59:59+08:00"
+
         calendar_events = calendar_service.get_calendar_events("all", end=fetch_end)
         active_tasks_db = db.get_current_task() or []
         historical_logs = db.get_history(3)

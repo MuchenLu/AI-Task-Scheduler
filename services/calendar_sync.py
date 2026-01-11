@@ -41,8 +41,9 @@ class CalendarService :
             self.service = build("calendar", "v3", credentials=creds)
             logger.info("Google Calendar build success.")
         except Exception as e :
-            logger.critical(f"Google Calendar build failed.")
-            return False
+            logger.critical(f"Google Calendar service initialization failed: {e}")
+            # 核心修正：不要在 __init__ 中返回值。將 service 設為 None 來標記初始化失敗。
+            self.service = None
     
     def get_calendar_events(self, calendar_id: Literal["all", "personal", "school", "task"], start: str = datetime.datetime.now(pytz.timezone('Asia/Taipei')).replace(hour=0, minute=0, second=0).isoformat(timespec = "seconds"), end: str = (datetime.datetime.now(pytz.timezone('Asia/Taipei')) + datetime.timedelta(days=7)).replace(hour=23, minute=59, second=59).isoformat(timespec = "seconds")) -> list :
         """Get specific time spec events.
@@ -54,6 +55,13 @@ class CalendarService :
         Returns:
             list: return a single list of all events from the specified calendars.
         """
+        # 核心修正：增加防衛敘述。如果服務未成功初始化，則直接返回，避免後續錯誤。
+        if not self.service:
+            logger.error("Calendar service is not available. Cannot fetch events.")
+            return []
+
+        logger.info(f"--- DEBUG: Fetching calendar events with calendar_id='{calendar_id}', start='{start}', end='{end}' ---")
+
         # 防錯增強：確保 start/end 包含時區，否則 Google API 會回傳 400 Bad Request。
         # 之前的 strptime 檢查不正確，因為它無法處理時區，所以移除。
         if start and isinstance(start, str) and "+" not in start and "Z" not in start:
@@ -108,6 +116,7 @@ class CalendarService :
             except Exception as e:
                 logger.error(f"A general error occurred when fetching 'task' calendar: {e}")
         
+        logger.info(f"--- DEBUG: Found a total of {len(all_events)} events. ---")
         return all_events
     
     def add_event(self, calendar_id: Literal["personal", "school", "task"], event: dict) -> int :
@@ -120,6 +129,11 @@ class CalendarService :
         Returns:
             int: Status code.
         """
+        # 核心修正：增加防衛敘述。
+        if not self.service:
+            logger.error("Calendar service is not available. Cannot add event.")
+            return 500
+
         event["reminders"] = {"useDefault": False, "overrides": [{"method": "popup", "minutes": 0}]}
         
         target_calendar_id = None

@@ -10,6 +10,22 @@ from utils.logger import logger
 
 MIN_PIXEL = 1.5
 
+def to_local_naive(iso_str: str) -> datetime:
+    """
+    關鍵修正：將 UTC 或帶有偏移的 ISO 時間字串轉換為本地 (台北) 時間，再轉為 naive datetime 供 UI 計算。
+    """
+    try:
+        # 處理 Google API 回傳的 Z (UTC) 或帶有時區偏移的格式
+        dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+        # 轉換為台北時區 (+8)
+        taipei_tz = pytz.timezone('Asia/Taipei')
+        dt_taipei = dt.astimezone(taipei_tz)
+        # 轉為無時區格式供 UI 計算
+        return dt_taipei.replace(tzinfo=None)
+    except (ValueError, TypeError) as e:
+        logger.error(f"時間轉換錯誤: {e}，輸入: '{iso_str}'。使用當前時間作為備援。")
+        return datetime.now()
+
 class CalendarView(QFrame) :
     choose_time = pyqtSignal(dict)  # Signal emitted when a suggest event is chosen
     def __init__(self, parent = None) :
@@ -76,19 +92,6 @@ class CalendarView(QFrame) :
         if not schedules:
             return
 
-        def to_local_naive(iso_str):
-            try:
-                # 1. 處理 Z 並轉成 aware datetime
-                dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
-                # 2. 轉換到台北時區
-                taipei_tz = pytz.timezone('Asia/Taipei')
-                dt_taipei = dt.astimezone(taipei_tz)
-                # 3. 再轉回 naive 以供 UI 繪製邏輯使用
-                return dt_taipei.replace(tzinfo=None)
-            except Exception as e:
-                logger.error(f"Time conversion error: {e}, using current local time as fallback.")
-                return datetime.now()
-
         START_HOUR = 0
         END_HOUR = 24
         HEADER_HEIGHT = 45 
@@ -114,7 +117,11 @@ class CalendarView(QFrame) :
         self.layout.addLayout(time_ruler_layout)
 
         # --- 3. 建立日期與事件欄位 (Columns) ---
-        all_dates = sorted(list({to_local_naive(s['start']['dateTime']).date() for s in schedules}))
+        # 修正：確保日期清單中永遠包含「今天」，這樣沒行程時也會顯示空欄位
+        today = datetime.now().date()
+        dates = {to_local_naive(s['start']['dateTime']).date() for s in schedules if 'dateTime' in s.get('start', {})}
+        dates.add(today) # 強制加入今天
+        all_dates = sorted(list(dates))
         
         for date in all_dates:
             date_column = QVBoxLayout()
@@ -128,7 +135,7 @@ class CalendarView(QFrame) :
             date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             date_column.addWidget(date_label)
             
-            today_schedules = [s for s in schedules if to_local_naive(s['start']['dateTime']).date() == date]
+            today_schedules = [s for s in schedules if 'dateTime' in s.get('start', {}) and to_local_naive(s['start']['dateTime']).date() == date]
             today_schedules.sort(key=lambda x: to_local_naive(x['start']['dateTime']))
 
             # 渲染基準點：當天 00:00

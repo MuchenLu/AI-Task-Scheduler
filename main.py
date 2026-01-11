@@ -3,6 +3,7 @@ import ctypes
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from config import config
 from ui.main_window import MainWindow
+from core.state_machine import task_state_manager
 from ui.tray_icon import TrayIcon
 from utils.logger import logger
 
@@ -37,6 +38,9 @@ if __name__ == "__main__":
 
     # MainWindow 現在是核心，處理所有UI邏輯和工作線程
     window = MainWindow()
+    
+    # 新增：啟動後立刻要求狀態機更新一次日曆，預載入今天的資料
+    task_state_manager.fetch_and_emit_calendar()
     
     # 設定系統匣圖示
     tray = TrayIcon(window)

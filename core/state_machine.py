@@ -1,5 +1,7 @@
 import datetime
 from PyQt6.QtCore import QObject, pyqtSignal
+from dateutil.parser import parse
+import pytz
 from config import config
 from utils.logger import logger
 from data.db_manager import db
@@ -17,7 +19,77 @@ class TaskStateManager(QObject) :
     
     def __init__(self) :
         super().__init__()
-    
+
+    def fetch_and_emit_calendar(self, suggestions=None, target_date_str=None):
+        """
+        新增一個統一抓取並發送日曆資料的方法。
+        它會抓取指定日期的既有行程，並可選擇性地合併傳入的建議行程。
+        """
+        schedule_list = suggestions if suggestions is not None else []
+        
+        # --- 核心修正：動態計算涵蓋所有相關日期的時間範圍 ---
+        # 之前的邏輯只抓取單一目標日期的事件，導致其他日期的既有事件遺失。
+        # 新邏輯會找出所有建議行程和目標日期，並抓取這個完整區間的所有事件。
+        all_relevant_dates = []
+        
+        # 1. 從建議行程中提取日期
+        for s in schedule_list:
+            if s.get('type') == 'suggest' and 'dateTime' in s.get('start', {}):
+                try:
+                    dt = parse(s['start']['dateTime'])
+                    all_relevant_dates.append(dt.date())
+                except (ValueError, TypeError):
+                    logger.warning(f"無法從建議行程中解析日期: {s}")
+        
+        # 2. 從目標日期字串中提取日期
+        if target_date_str:
+            try:
+                target_date = parse(target_date_str).date()
+                all_relevant_dates.append(target_date)
+            except (ValueError, TypeError):
+                logger.warning(f"無法解析目標日期字串: {target_date_str}")
+
+        # 3. 決定抓取範圍
+        if all_relevant_dates:
+            min_date = min(all_relevant_dates)
+            max_date = max(all_relevant_dates)
+            fetch_start = datetime.datetime.combine(min_date, datetime.time.min).isoformat() + "+08:00"
+            fetch_end = datetime.datetime.combine(max_date, datetime.time.max).isoformat() + "+08:00"
+        else:
+            # 如果沒有任何有效日期，則備援為抓取今天
+            today = datetime.datetime.now(pytz.timezone('Asia/Taipei')).date()
+            fetch_start = datetime.datetime.combine(today, datetime.time.min).isoformat() + "+08:00"
+            fetch_end = datetime.datetime.combine(today, datetime.time.max).isoformat() + "+08:00"
+        
+        # 使用動態計算出的、更可靠的範圍來抓取 Google 日曆事件
+        all_events = calendar_service.get_calendar_events("all", start=fetch_start, end=fetch_end)
+        
+        # A. 處理 Google 日曆事件 (相容全天事件)
+        if all_events:
+            for event in all_events:
+                start_data = event.get('start', {})
+                end_data = event.get('end', {})
+                
+                start_time = start_data.get('dateTime')
+                end_time = end_data.get('dateTime')
+
+                # 如果是全天事件，手動設定開始與結束時間
+                if not start_time and 'date' in start_data:
+                    start_date = start_data['date']
+                    start_time = f"{start_date}T00:00:00+08:00"
+                    end_time = f"{start_date}T23:59:59+08:00"
+
+                if start_time and end_time:
+                    schedule_list.append({
+                        'text': event.get('summary', '無標題'),
+                        'start': {'dateTime': start_time},
+                        'end': {'dateTime': end_time},
+                        'type': 'fixed'
+                    })
+        
+        logger.info(f"發送行程列表，共 {len(schedule_list)} 個事件")
+        self.task_info.emit(schedule_list)
+
     def process_voice(self, text: str):
         """處理使用者的語音或文字指令"""
         intents = llm_client.analyze_intent(text)
@@ -35,69 +107,15 @@ class TaskStateManager(QObject) :
                     if response and response.get("status") == "success":
                         # 獲取 AI 建議行程
                         recommendations = response.get("recommendations", {})
-                        schedule_list = []
+                        suggestions_list = []
                         for key, value in recommendations.items():
                             new_schedule = value.copy()
                             new_schedule['type'] = 'suggest'
                             new_schedule['text'] = new_schedule.get('summary', '無摘要')
-                            schedule_list.append(new_schedule)
-
-                        # --- 關鍵修正：確保抓取範圍包含完整日期與台灣時區 ---
-                        due_date = content.get("due_date")
-                        fetch_start = None
-                        fetch_end = None
+                            suggestions_list.append(new_schedule)
                         
-                        if due_date:
-                            # 統一格式為 YYYY-MM-DD
-                            base_date = due_date[:10]
-                            # 抓取該日 00:00 到 23:59，並補上時區 +08:00
-                            fetch_start = f"{base_date}T00:00:00+08:00"
-                            fetch_end = f"{base_date}T23:59:59+08:00"
-                        
-                        # 修正：同時抓取 Google 日曆與本地 DB 任務
-                        all_events = calendar_service.get_calendar_events(
-                            "all", 
-                            start=fetch_start, 
-                            end=fetch_end
-                        )
-                        current_db_tasks = db.get_current_task() or [] # 本地任務
-
-                        # A. 處理 Google 日曆事件 (相容全天事件)
-                        if all_events:
-                            for event in all_events:
-                                start_data = event.get('start', {})
-                                end_data = event.get('end', {})
-                                
-                                start_time = start_data.get('dateTime')
-                                end_time = end_data.get('dateTime')
-
-                                # 如果是全天事件，手動設定開始與結束時間
-                                if not start_time and 'date' in start_data:
-                                    start_date = start_data['date']
-                                    start_time = f"{start_date}T00:00:00+08:00"
-                                    # Google API 的全天事件 end date 是不包含的，所以結束時間設為當天 23:59
-                                    end_time = f"{start_date}T23:59:59+08:00"
-
-                                if start_time and end_time:
-                                    schedule_list.append({
-                                        'text': event.get('summary', '無標題'),
-                                        'start': {'dateTime': start_time},
-                                        'end': {'dateTime': end_time},
-                                        'type': 'fixed'
-                                    })
-                        
-                        # B. 修正：將本地 DB 中的任務也放入日曆視圖
-                        for db_task in current_db_tasks:
-                            if db_task.get('status') != 'COMPLETED':
-                                schedule_list.append({
-                                    'text': f"[本地] {db_task.get('task_name')}",
-                                    'start': {'dateTime': db_task.get('start_time') or fetch_start},
-                                    'end': {'dateTime': db_task.get('due_date') or fetch_end},
-                                    'type': 'fixed'
-                                })
-                        
-                        logger.info(f"發送行程列表，共 {len(schedule_list)} 個事件")
-                        self.task_info.emit(schedule_list)
+                        # 呼叫統一的方法，傳入建議行程與目標日期
+                        self.fetch_and_emit_calendar(suggestions_list, content.get("due_date"))
                     elif response and response.get("reason"):
                         self.error_info.emit(response.get("reason"))
                     else:
@@ -168,7 +186,9 @@ class TaskStateManager(QObject) :
                             break
 
                 case "QUERY_TASK":
+                    # 修正：使用者查詢時，除了回話，也要更新日曆視圖
+                    self.fetch_and_emit_calendar() 
                     subtasks = db.get_current_task() or []
-                    self.user_msg.emit(str(subtasks))
+                    self.user_msg.emit("正在為您查詢今天的行程...")
 
 task_state_manager = TaskStateManager()
