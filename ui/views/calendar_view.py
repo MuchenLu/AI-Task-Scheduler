@@ -89,9 +89,6 @@ class CalendarView(QFrame) :
             elif item.layout():
                 self._clear_sub_layout(item.layout())
 
-        if not schedules:
-            return
-
         START_HOUR = 0
         END_HOUR = 24
         HEADER_HEIGHT = 45 
@@ -117,11 +114,23 @@ class CalendarView(QFrame) :
         self.layout.addLayout(time_ruler_layout)
 
         # --- 3. 建立日期與事件欄位 (Columns) ---
-        # 修正：確保日期清單中永遠包含「今天」，這樣沒行程時也會顯示空欄位
-        today = datetime.now().date()
-        dates = {to_local_naive(s['start']['dateTime']).date() for s in schedules if 'dateTime' in s.get('start', {})}
-        dates.add(today) # 強制加入今天
-        all_dates = sorted(list(dates))
+        # --- 核心修正：只顯示包含「建議行程」的日期 ---
+        # 1. 首先，找出所有包含建議行程的日期。
+        suggestion_dates = {to_local_naive(s['start']['dateTime']).date() 
+                            for s in schedules 
+                            if s.get('type') == 'suggest' and 'dateTime' in s.get('start', {})}
+
+        # 2. 如果有建議行程，則只顯示那些天。
+        if suggestion_dates:
+            dates_to_display = suggestion_dates
+        else:
+            # 3. 如果沒有建議行程 (例如只是查詢)，則顯示所有有事件的天。
+            dates_to_display = {to_local_naive(s['start']['dateTime']).date() for s in schedules if 'dateTime' in s.get('start', {})}
+            # 如果仍然沒有任何日期，則備援為顯示今天，避免畫面空白。
+            if not dates_to_display:
+                dates_to_display.add(datetime.now().date())
+
+        all_dates = sorted(list(dates_to_display))
         
         for date in all_dates:
             date_column = QVBoxLayout()
