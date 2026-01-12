@@ -66,19 +66,19 @@ class TaskStateManager(QObject) :
         # 1. 抓取 Google 日曆事件
         all_events = calendar_service.get_calendar_events("all", start=fetch_start, end=fetch_end)
         
-        # 2. 關鍵修正：必須合併本地資料庫 (db) 的任務內容！
-        # 如果只抓 Google，而本地還沒同步，日曆就會是空的。
-        local_tasks = db.get_current_task() or []
-        
-        # 將 local_tasks 轉為 schedule 格式並加入 schedule_list
-        for task in local_tasks:
-            if task.get("status") != "COMPLETED":
-                schedule_list.append({
-                    'text': f"[待辦] {task.get('summary')}",
-                    'start': {'dateTime': task.get('start_time', fetch_start)},
-                    'end': {'dateTime': task.get('due_date', fetch_end)},
-                    'type': 'fixed' # 既有的任務視為固定
-                })
+        # 2. 關鍵修正：只有在「非」新增建議行程的模式下 (例如一般查詢)，才合併本地資料庫的任務。
+        # 當使用者要新增任務時 (suggestions is not None)，我們只顯示 Google 日曆上的既有行程，
+        # 避免本地端尚未同步的任務造成畫面混亂，讓使用者能根據最準確的日曆來做決策。
+        if suggestions is None:
+            local_tasks = db.get_current_task() or []
+            for task in local_tasks:
+                if task.get("status") != "COMPLETED":
+                    schedule_list.append({
+                        'text': f"[待辦] {task.get('summary')}",
+                        'start': {'dateTime': task.get('start_time', fetch_start)},
+                        'end': {'dateTime': task.get('due_date', fetch_end)},
+                        'type': 'fixed' # 既有的任務視為固定
+                    })
         
         # A. 處理 Google 日曆事件 (相容全天事件)
         if all_events:

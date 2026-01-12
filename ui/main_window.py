@@ -54,13 +54,16 @@ class MainWindow(QMainWindow):
         
         # Connect worker signals
         self.recorder.recorded.connect(self.process_audio)
-        self.ai_processer.finished.connect(self.show_calendar_view)
+        # 核心修正：斷開這個錯誤的連接。不應該在所有 AI 指令處理完成後都顯示日曆。
+        # self.ai_processer.finished.connect(self.show_calendar_view)
 
         # Connect view signals
         self.calendar_view.choose_time.connect(self.handle_schedule_selection)
         self.text_input.input_content.connect(self.change_text_input)
-        # 核心修正：連接 textChanged 訊號，以便在使用者輸入時重置淡出計時器
         self.text_input.textChanged.connect(self.reset)
+
+        # 連接來自 state_machine 的訊號，這才是控制 UI 顯示的正確方式
+        task_state_manager.show_calendar_signal.connect(self.show_calendar_view)
 
         self.sig_hotkey_voice.connect(self.change_voice_button)
         self.sig_hotkey_text.connect(self.change_text_input)
