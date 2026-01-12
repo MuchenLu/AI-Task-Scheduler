@@ -3,7 +3,7 @@ from ui.components.voice_button import VoiceButton
 from ui.styles import Colors
 from ui.views.task_view import TaskView
 from ui.views.calendar_view import CalendarView
-from PyQt6.QtWidgets import QMainWindow, QApplication
+from PyQt6.QtWidgets import QMainWindow, QApplication, QFrame
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal # 記得引入 pyqtSignal
 from ui.workers import RecorderWorker, AIProcessorWorker
 import keyboard
@@ -21,9 +21,23 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Sched AI")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool) # 加上 Tool 可以避免在工作列佔位(看需求)
+        
+        # 1. 關鍵修正：保持視窗屬性為透明，但移除 QMainWindow 的 CSS 背景
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowOpacity(0.95)
-        self.setStyleSheet(f"QMainWindow {{ background: {Colors.BACKGROUND}; border-radius: 20px; }}")
+        
+        # 這裡不要直接給 QMainWindow 設定 background，否則會出現方形底
+        self.setStyleSheet("QMainWindow { background: transparent; }")
+
+        # 2. 建立一個負責背景外觀的容器
+        self.main_container = QFrame(self)
+        self.main_container.setObjectName("MainContainer")
+        self.main_container.setStyleSheet(f"""
+            #MainContainer {{
+                background-color: {Colors.BACKGROUND};
+                border-radius: 20px;
+            }}
+        """)
         
         # 增加一個狀態旗標，判斷當前是否處於需要使用者互動的模式
         self.is_interactive = False
@@ -39,10 +53,10 @@ class MainWindow(QMainWindow):
         self.auto_fade_timer.timeout.connect(self.fade_out)
         self.auto_fade_timer.setSingleShot(True) # 設為單次觸發，避免重複播放動畫
         
-        self.text_input = TextInput(self)
-        self.voice_button = VoiceButton(self)
-        self.task_view = TaskView(parent=self)
-        self.calendar_view = CalendarView(self)
+        self.text_input = TextInput(self.main_container)
+        self.voice_button = VoiceButton(self.main_container)
+        self.task_view = TaskView(parent=self.main_container)
+        self.calendar_view = CalendarView(self.main_container)
         
         self.text_input.hide()
         self.voice_button.hide()
@@ -98,11 +112,12 @@ class MainWindow(QMainWindow):
             self.hide()
         else:
             self.setFixedSize(self.size_set["text"][0], self.size_set["text"][1])
+            self.main_container.show()
             self.text_input.show()
             # 手動將輸入框置中
             self.text_input.move(
-                (self.width() - self.text_input.width()) // 2,
-                (self.height() - self.text_input.height()) // 2
+                (self.main_container.width() - self.text_input.width()) // 2,
+                (self.main_container.height() - self.text_input.height()) // 2
             )
             self.text_input.setFocus()
             self.move_to_corner()
@@ -120,11 +135,12 @@ class MainWindow(QMainWindow):
 
         if not self.recorder.isRunning():
             self.setFixedSize(self.size_set["record"][0], self.size_set["record"][1])
+            self.main_container.show()
             self.voice_button.show()
             # 手動將錄音按鈕置中
             self.voice_button.move(
-                (self.width() - self.voice_button.width()) // 2,
-                (self.height() - self.voice_button.height()) // 2
+                (self.main_container.width() - self.voice_button.width()) // 2,
+                (self.main_container.height() - self.voice_button.height()) // 2
             )
             self.voice_button.start_anim()
             self.recorder.start()
@@ -148,6 +164,7 @@ class MainWindow(QMainWindow):
         
         # 1. 更新資料
         self.task_view.update(db.get_current_task())
+        self.main_container.show()
         self.task_view.show()
         
         # 2. 動態計算尺寸
@@ -164,7 +181,7 @@ class MainWindow(QMainWindow):
         self.setFixedSize(target_w, target_h)
         
         # 核心修正：確保 TaskView 的大小與主視窗同步，解決偏移問題
-        self.task_view.setFixedSize(self.width(), self.height())
+        self.task_view.setFixedSize(self.main_container.width(), self.main_container.height())
         
         self.move_to_corner()
 
@@ -186,6 +203,7 @@ class MainWindow(QMainWindow):
         self.task_view.hide()
 
         # 確保 CalendarView 已經更新內容
+        self.main_container.show()
         self.calendar_view.show()
         
         # 強制佈局即時計算
@@ -198,7 +216,7 @@ class MainWindow(QMainWindow):
         
         # 限制最小與最大範圍，避免視窗太小或太大
         self.setFixedSize(max(400, new_width), max(300, new_height))
-        self.calendar_view.setFixedSize(self.width(), self.height())
+        self.calendar_view.setFixedSize(self.main_container.width(), self.main_container.height())
         
         self.move_to_corner()
 
@@ -273,6 +291,8 @@ class MainWindow(QMainWindow):
         super().keyPressEvent(event)
     
     def resizeEvent(self, event):
+        # 確保容器填滿視窗，這樣圓角背景才會正確顯示
+        self.main_container.resize(self.size())
         self.move_to_corner()
         super().resizeEvent(event)
 

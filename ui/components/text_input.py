@@ -7,10 +7,14 @@ class TextInput(QTextEdit) :
     
     def __init__(self, parent = None) :
         super().__init__(parent)
+        # 核心修正：設定 WA_StyledBackground 屬性。
+        # 這會告訴 QTextEdit 不要繪製預設的、不透明的背景，
+        # 而是完全依賴樣式表來決定背景外觀，從而解決透明視窗下的方框問題。
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedSize(350, 90)
         self.setStyleSheet("""
             QTextEdit {
-                background-color: rgba(255, 255, 255, 0.7);
+                background: transparent;
                 border: 1px solid rgba(255, 255, 255, 0.4);
                 border-radius: 20px;
                 padding: 8px 15px;
@@ -19,7 +23,7 @@ class TextInput(QTextEdit) :
                 selection-background-color: #a29bfe;
             }
             QTextEdit:focus {
-                background-color: rgba(255, 255, 255, 0.95);
+                background: transparent;
                 border: 1px solid #74b9ff; 
             }
         """)
