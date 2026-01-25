@@ -156,9 +156,11 @@ class SetupView(QWidget) :
         self.career_type = QComboBox()
         self.career_type.addItems(self.careers.keys())
         self.career_type.setPlaceholderText("請選擇您的職業類型...")
+        self.career_type.setCurrentIndex(-1)
         self.career_type.currentTextChanged.connect(self.update_career_options)
         self.career_job = QComboBox()
         self.career_job.setPlaceholderText("請選擇您的職業...")
+        self.career_job.setCurrentIndex(-1)
         self.page2_layout.addWidget(self.page2_title)
         self.page2_layout.addSpacing(20)
         self.page2_layout.addWidget(self.career_type)
@@ -172,7 +174,7 @@ class SetupView(QWidget) :
         self.page3_title = QLabel("您哪些時間可以安排任務？")
         self.page3_title.setObjectName("PageTitle")
         self.time_input = QLineEdit()
-        self.time_input.setPlaceholderText("請輸入您的可安排時間...（如有多段時間請以逗號分隔）")
+        self.time_input.setPlaceholderText("24 小時制，如有多段時間請以逗號分隔（如：08:00~22:00）")
         self.page3_layout.addWidget(self.page3_title)
         self.page3_layout.addSpacing(20)
         self.page3_layout.addWidget(self.time_input)
@@ -185,7 +187,7 @@ class SetupView(QWidget) :
         self.page4_title = QLabel("您一天中什麼時間效率最高？")
         self.page4_title.setObjectName("PageTitle")
         self.efficiency_input = QLineEdit()
-        self.efficiency_input.setPlaceholderText("請輸入您的高效率時間...（如有多段時間請以逗號分隔）")
+        self.efficiency_input.setPlaceholderText("24 小時制，如有多段時間請以逗號分隔（如：08:00~10:00）")
         self.page4_layout.addWidget(self.page4_title)
         self.page4_layout.addSpacing(20)
         self.page4_layout.addWidget(self.efficiency_input)
@@ -230,7 +232,7 @@ class SetupView(QWidget) :
         self.page7_title = QLabel("您希望如何拆解任務？")
         self.page7_title.setObjectName("PageTitle")
         self.decompose_input = QLineEdit()
-        self.decompose_input.setPlaceholderText("請輸入您的任務拆解方式...")
+        self.decompose_input.setPlaceholderText("請輸入您的任務拆解方式...（如：番茄鐘拆法）")
         self.page7_layout.addWidget(self.page7_title)
         self.page7_layout.addSpacing(20)
         self.page7_layout.addWidget(self.decompose_input)
@@ -701,12 +703,13 @@ class SetupView(QWidget) :
                 logger.error(f"新增 {calendar_id} 時出現未知錯誤")
                 return
             
-        self.calendar_list.append(calendar_id)
+        self.calendar_list.append({"id": calendar_id, "choose": False})
         row = self.calendar_check_layout.rowCount()
         calendar_label = QLabel(calendar_id)
         calendar_label.setWordWrap(True)
         calendar_label.setObjectName("CalendarCheckLabel")
         calendar_checkbox = QRadioButton()
+        calendar_checkbox.clicked.connect(lambda: self.update_calendar_choose(calendar_id))
         calendar_checkbox.setObjectName("CalendarCheckButton")
         calendar_delete_btn = QPushButton("刪除")
         calendar_delete_btn.setObjectName("CalendarDeleteButton")
@@ -767,6 +770,12 @@ class SetupView(QWidget) :
                         widget.deleteLater()
                 break
     
+    def update_calendar_choose(self, calendar_id) :
+        for calendar in self.calendar_list :
+            calendar["choose"] = False
+            if calendar["id"] == calendar_id :
+                calendar["choose"] = True
+    
     def update_user_config(self) :
         obj = self.inputs.get(self.step, [])
         if isinstance(obj, QLineEdit) :
@@ -775,10 +784,21 @@ class SetupView(QWidget) :
             value = obj.currentText()
         if obj == self.career_type :
             career_job = self.career_job.currentText()
-            career_code = self.careers.get(value, {}).get(career_job, "")
+            career_code = self.careers.get(value, {}).get(career_job, None)
             if career_code :
                 self.user_config[self.keys[self.step]] = career_code
                 value = career_code
+            else :
+                value = None
+        elif obj == self.total_num_input :
+            am_num = self.am_num_input.text()
+            pm_num = self.pm_num_input.text()
+            if value < am_num + pm_num :
+                QMessageBox.warning(self, "輸入錯誤", "上下午任務總數不可大於全天的數量。")
+                return False
+            value = [value, am_num, pm_num]
+        elif obj == self.calendar_id_input :
+            value = self.calendar_list
         if not value :
             QMessageBox.warning(self, "輸入錯誤", "請填寫所有欄位後再進行下一步。")
             self.stack.setCurrentIndex(self.step)
