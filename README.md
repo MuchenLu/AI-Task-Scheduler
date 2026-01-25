@@ -11,6 +11,9 @@ SCHEDAI/ # 專案根目錄
     |── config.py # 設定程式
     |── credentials.json # API 金鑰
 |── settings/ # 使用者設定檔
+    |── settings.py # 存取使用者設定檔
+    |── user_config.json # 使用者設定檔
+    |── user_prompt.json # 使用者個人化切分 prompt
 |── utils/ # 工具
     |── logger.py # log 設定
     |── date_helper.py # 日期轉換
@@ -32,6 +35,7 @@ SCHEDAI/ # 專案根目錄
         |── text_input.py # 文字輸入框
         |── task_card.py # 任務狀態卡
         |── notifi_box.py # 通知框
+    |── styles.py # 樣式
     |── setup.py # 初始設定視窗
     |── calendar_view.py # 日曆視圖
     |── status_view.py # 任務狀態視圖
@@ -41,9 +45,12 @@ SCHEDAI/ # 專案根目錄
     |── calendar_controller.py # 日曆串接
     |── llm_controller.py # AI 串接
     |── data_controller.py # 資料串接
+|── tests/ # 測試
+    |── test_date_helpper.py # 測試日期轉換
 |── main.py # 主入口
 |── .env
 |── .gitignore
+|── pyproject.toml # 基本專案設定
 |── requirements.txt
 |── README.md
 ```

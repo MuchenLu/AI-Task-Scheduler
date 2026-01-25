@@ -17,3 +17,4 @@ pydub
 # === Utils ===
 pytz
 python-dateutil
+pytest

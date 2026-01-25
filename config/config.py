@@ -31,8 +31,9 @@ RECORD_GIF = IMAGE_DIR / "record.gif"
 CREDENTIALS_JSON = CONFIG_DIR / "credentials.json"
 TOKEN_JSON = CONFIG_DIR / "token.json"
 USER_CONFIG = SETTINGS_DIR / "user_config.json"
+USER_PROMPT = SETTINGS_DIR / "user_prompt.py"
 CURRENT_JSON = DATA_DIR / "current.json"
-HISTORY_JSON = HISTORY_DIR / f"{datetime.now().strftime('%Y-%m-%d')}.json"
+HISTORY_JSON = HISTORY_DIR / f"{datetime.now().strftime('%Y-%m')}.json"
 LOG_FILE = LOG_DIR / "app.log"
 
 # * 環境變數設定
@@ -46,6 +47,9 @@ def validate() :
     if not os.path.exists(SETTINGS_DIR) :
         os.makedirs(SETTINGS_DIR)
         logger.info(f"未發現 {SETTINGS_DIR}，建立資料夾：{SETTINGS_DIR}")
+    if not os.path.exists(USER_PROMPT) :
+        os.makedirs(USER_PROMPT)
+        logger.info(f"未發現 {USER_PROMPT}，建立檔案：{USER_PROMPT}")
     if not os.path.exists(ICON_PNG) :
         logger.warning(f"未發現圖示檔案：{ICON_PNG}，請確認是否存在")
     if not os.path.exists(ICON_ICO) :

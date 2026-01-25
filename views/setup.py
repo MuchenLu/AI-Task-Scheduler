@@ -6,6 +6,7 @@
 
 from PyQt6.QtWidgets import QWidget, QProgressBar, QComboBox, QStackedWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit, QPushButton, QButtonGroup, QRadioButton, QMessageBox
 from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import pyqtSignal
 import json
 import os
 from config.config import ICON_ICO, USER_CONFIG
@@ -14,6 +15,7 @@ from utils.logger import logger
 from models.calendar_sync import calendar
 
 class SetupView(QWidget) :
+    setup_complete = pyqtSignal()
     def __init__(self) :
         super().__init__()
         self.setWindowTitle("SCHEDAI 初始設定")
@@ -810,6 +812,8 @@ class SetupView(QWidget) :
             with open(USER_CONFIG, "w", encoding="utf-8") as f :
                 json.dump(self.user_config, f, ensure_ascii=False, indent=4)
             logger.info("使用者設定檔已更新。")
+            self.close()
+            self.setup_complete.emit()
         
         return True
 

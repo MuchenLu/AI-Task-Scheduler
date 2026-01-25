@@ -7,3 +7,5 @@ logs/*
 settings/user_config.json
 .env
 test.py
+.pytest_cache
+settings/user_prompt.py

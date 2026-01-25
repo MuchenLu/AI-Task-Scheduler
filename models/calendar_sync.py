@@ -1,6 +1,16 @@
+'''
+./models/calendar.sync.py
+模組功能：
+1. 驗證 Google Calendar ID
+2. 取得 calendar events
+3. 新增 calendar events
+4. 更新 calendar events
+5. 刪除 calendar events
+'''
 import os
 import datetime
 import pytz
+from ast import literal_eval
 from typing import Literal
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -8,6 +18,7 @@ from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from utils.logger import logger
+from utils.date_helpper import *
 from config.config import TOKEN_JSON, CREDENTIALS_JSON
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -42,11 +53,40 @@ class CalendarService :
             logger.critical(f"Google Calendar 初始化失敗: {e}")
             self.service = None
     
-    def valiadate_calendar(self, calendar_id) -> int :
+    def valiadate_calendar(self, calendar_id: str) -> int :
+        """用於驗證 calendar id 是否存在且可取得
+
+        Args:
+            calendar_id (str): 傳入的 calendar id
+
+        Returns:
+            int: 狀態碼
+        """
         try :
             calendar_meta = self.service.calendars().get(calendarId = calendar_id).execute()
             return 200
         except HttpError as e :
             return e.resp.status
-        
+    
+    def get_calendar_events(self, start_time: str = datetime_before_week(datetime.datetime.now(), "str"), end_time: str = datetime_after_week(datetime.datetime.now(), "str")) -> list :
+        """用於取得指定時間的所有 calendar events
+
+        Args:
+            start_time (str, optional): 設定起始日期時間. 預設為一星期前的 00:00:00
+            end_time (str, optional): 設定截止日期時間. 預設為一星期後的 23:59:00
+
+        Returns:
+            list: 期間內完整的 calendar events
+        """
+        total_events = []
+        try :
+            for calendar_id in literal_eval(os.getenv("GOOGLE_CALENDAR_ID")) :
+                events = self.service.events().list(calendarId = calendar_id, timeMin = start_time, timeMax = end_time, singleEvents = True, eventTypes = ["default"], orderBy = "startTime").execute().get("items", [])
+                total_events.extend(events)
+            total_events.sort(key = lambda x : x["start"]["dateTime"])
+            return total_events
+        except Exception as e :
+            raise Exception(f"取得 calendar events 出錯: {e}")
+
+    
 calendar = CalendarService()
