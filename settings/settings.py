@@ -19,7 +19,12 @@ def load_user_config() :
             os.environ["DAILY_TASK_LIMIT"] = str(data["DAILY_TASK_LIMIT"])
             os.environ["TASK_DECOMPOSITION"] = data["TASK_DECOMPOSITION"]
             os.environ["DEFAULT_TASK_DURATION"] = data["DEFAULT_TASK_DURATION"]
+            calendars = data["GOOGLE_CALENDAR_ID"]
             os.environ["GOOGLE_CALENDAR_ID"] = str(data["GOOGLE_CALENDAR_ID"])
+            for calendar in calendars :
+                if calendar.get("choose", False) :
+                    os.environ["TASK_CALENDAR"] = calendar["id"]
+                    break
             return True
     except FileNotFoundError :
         logger.warning(f"未發現使用者設定檔：{USER_CONFIG}，將啟動 setup 程式。")

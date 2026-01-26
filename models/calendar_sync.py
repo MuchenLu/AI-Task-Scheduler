@@ -87,6 +87,22 @@ class CalendarService :
             return total_events
         except Exception as e :
             raise Exception(f"取得 calendar events 出錯: {e}")
+    
+    def add_calendar_event(self, task_content: dict) :
+        """新增 Google Calendar 事件，並添上私人屬性
 
+        Args:
+            task_content (dict): 包含 summary, start 以及 end 的任務內容
+        """
+        # NOTE: 確認內容正確度
+        if not all(key in task_content for key in ["summary", "start", "end", "extendProperties"]) :
+            raise Exception(f"新增事件格式錯誤: {task_content}")
+        
+        task_content["reminders"] = {"useDefault": False, "overrides": [{"method": "popup", "minutes": 0}]}
+        try :
+            self.service.events().insert(calendarId = os.getenv("TASK_CALENDAR"), body = task_content).execute()
+            logger.info("新增事件成功")
+        except Exception as e :
+            raise Exception(f"新增事件失敗: {e}")
     
 calendar = CalendarService()
