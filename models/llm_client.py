@@ -41,7 +41,6 @@ class LLMClient() :
         self.USER_INTENT_PROMPT = USER_INTENT_PROMPT
         self.STATE_CONTROLLER_PROMPT = STATE_CONTROLLER_PROMPT
         self.GENERATE_DECOMPOSITION_PROMPT = GENERATE_DECOMPOSITION_PROMPT
-        
         self.SCHEDULER_PROMPT = self._combine_user_settings(self.SCHEDULER_PROMPT, {"rest_buffer_time": os.getenv("REST_BUFFER_TIME"),
                                                                             "available_time": os.getenv("AVAILABLE_TIME"),
                                                                             "daily_task_limit": os.getenv("DAILY_TASK_LIMIT"),
@@ -66,8 +65,7 @@ class LLMClient() :
         Returns:
             str: 結合後的 prompt
         """
-        prompt.format_map(SafeDict(user_settings))
-        return prompt
+        return prompt.format_map(SafeDict(user_settings))
     
     def _format_prompt(self, prompt: str, content: dict) -> str :
         """將 prompt 中的變數替換成真實內容
@@ -79,10 +77,17 @@ class LLMClient() :
         Returns:
             str: 替換完成後的 prompt
         """
-        prompt.format_map(content)
-        return prompt
+        return prompt.format_map(content)
+    
+    def _format_response(self, content: str) -> str :
+        content = content.replace("```json", "").replace("```", "")
+        content = content.replace("null", "None")
+        content = content.replace("true", "True")
+        content = content.replace("false", "False")
+        return content.replace("null", "None")
 
-    def analyze_intent(self, calendar_events: list, existing_tasks_db: list, command: str) -> list :
+
+    def analyze_intent(self, command: str) -> list :
         """分析使用者意圖（支援多意圖）
 
         Args:
@@ -94,18 +99,21 @@ class LLMClient() :
             list: 使用者意圖列表
         """
         current_time = to_ISO8601(datetime.now(), "str")
+        calendar_events = calendar.get_calendar_events(to_ISO8601(datetime.now(), "str"))
+        existing_tasks_db = manager.get_current()
         prompt = self._format_prompt(self.USER_INTENT_PROMPT, {"current_time": current_time,
                                                                "calendar_events": calendar_events,
                                                                "existing_tasks_db": existing_tasks_db,
                                                                "command": command})
-        result = self.model.generate_content(prompt).text.replace("```json", "").replace("```", "")
+        result = self.model.generate_content(prompt).text
+        result = self._format_response(result)
         try :
             result = literal_eval(result)
             return result
         except SyntaxError :
             raise SyntaxError(f"AI 分析意圖回覆格式錯誤或無效: {result}")
     
-    def decomposition_task(self, task_context: dict, historical_data: list) -> dict :
+    def decomposition_task(self, task_context: dict) -> dict :
         """判斷使用者的任務是否需要拆解
 
         Args:
@@ -115,16 +123,18 @@ class LLMClient() :
         Returns:
             dict: 是否需要拆解及如何拆解
         """
+        historical_data = manager.get_history()
         prompt = self._format_prompt(self.DECOMPOSITIPON_PROMPT, {"task_context": task_context,
                                                                   "historical_data": historical_data})
-        result = self.model.generate_content(prompt).text.replace("```json", "").replace("```", "")
+        result = self.model.generate_content(prompt).text
+        result = self._format_response(result)
         try :
             result = literal_eval(result)
             return result
         except SyntaxError :
             raise SyntaxError(f"AI 拆解回覆格式錯誤或無效: {result}")
 
-    def scheduler_prompt(self, task_content: dict) -> list :
+    def suggest_schedule(self, task_content: dict) -> list :
         """用於推薦使用者任務時間
 
         Args:
@@ -133,26 +143,26 @@ class LLMClient() :
         Returns:
             list: 任務推薦時間清單
         """
-        calendar_events = calendar.get_calendar_events(to_ISO8601(datetime.now(), "str"), to_ISO8601(task_content["end"]["dateTime"]))
+        current_time = to_ISO8601(datetime.now(), "str")
+        calendar_events = calendar.get_calendar_events(to_ISO8601(datetime.now(), "str"), to_ISO8601(task_content["deadline"], "str"))
         historical_logs = manager.get_history()
-        prompt = self._format_prompt(self.SCHEDULER_PROMPT, {"calendar_events": calendar_events,
+        prompt = self._format_prompt(self.SCHEDULER_PROMPT, {"current_time": current_time,
+                                                             "calendar_events": calendar_events,
                                                              "historical_logs": historical_logs,
-                                                             "task_content": task_content})
-        result = self.model.generate_content(prompt).text.replace("```json", "").replace("```", "")
+                                                             "command": task_content})
+        result = self.model.generate_content(prompt).text
+        result = self._format_response(result)
         try :
             result = literal_eval(result)
-            return result
+            return result, calendar_events
         except SyntaxError :
             raise SyntaxError(f"AI 時間推薦回覆格式錯誤或無效: {result}")
     
-    def change_state_prompt(self, actions: dict) -> list :
+    def change_state(self, actions: list) :
         """用於更新任務狀態
 
         Args:
             actions (dict): 要動作的任務及動作
-
-        Returns:
-            list: 更新後的完整任務狀態
         """
         current_time = to_ISO8601(datetime.now(), "str")
         current_active_tasks_json = manager.get_current()
@@ -160,10 +170,12 @@ class LLMClient() :
         prompt = self._format_prompt(self.STATE_CONTROLLER_PROMPT, {"current_time": current_time,
                                                                     "current_active_tasks_json": current_active_tasks_json,
                                                                     "calendar_tasks": calendar_tasks,
-                                                                    "actions": actions})
+                                                                    "action": actions})
+        result = self.model.generate_content(prompt).text
+        result = self._format_response(result)
         try :
             result = literal_eval(result)
-            return result
+            manager.write_current(result)
         except SyntaxError :
             raise SyntaxError(f"AI 更新任務狀態回覆格式錯誤或無效: {result}")
 

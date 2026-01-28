@@ -110,7 +110,20 @@ class CalendarView(QWidget) :
             card = CalendarCard(self.widget, summary, to_ISO8601(start, "datetime"), to_ISO8601(end, "datetime"), "suggest")
             x = int(100 + 150 * dates.index(start.split("T")[0])) # NOTE: 時間的位移再加上日期的位置
             y = int(30 * self.per_min_height + (to_ISO8601(start, "datetime") - set_to_start(start, "datetime")).total_seconds() / 60 * self.per_min_height) # 先位移一格（因為從第二格起算）再來開始到該時間的像素
-            print(x, y)
+            card.move(int(x + ((150 - card.width()) / 2)), y)
+            card.show()
+        
+        for item in fixed_event :
+            summary = item["summary"]
+            start = item["start"]["dateTime"]
+            end = item["end"]["dateTime"]
+            try :
+                pos = dates.index(start.split("T")[0])
+            except ValueError :
+                continue
+            card = CalendarCard(self.widget, summary, to_ISO8601(start, "datetime"), to_ISO8601(end, "datetime"), "fixed")
+            x = int(100 + 150 * dates.index(start.split("T")[0])) # NOTE: 時間的位移再加上日期的位置
+            y = int(30 * self.per_min_height + (to_ISO8601(start, "datetime") - set_to_start(start, "datetime")).total_seconds() / 60 * self.per_min_height) # 先位移一格（因為從第二格起算）再來開始到該時間的像素
             card.move(int(x + ((150 - card.width()) / 2)), y)
             card.show()
         

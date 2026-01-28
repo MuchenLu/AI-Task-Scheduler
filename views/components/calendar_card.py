@@ -21,12 +21,12 @@ class CalendarCard(QWidget) :
         self.end_time = end_time
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(8, 5, 8, 5)
+        # self.layout.setContentsMargins(8, 5, 8, 5)
         self.layout.setSpacing(0)
         self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setLayout(self.layout)
         self.per_min_height = 1.5
-        self.setFixedWidth(100)
+        self.setFixedWidth(135)
         height = int((end_time - start_time).total_seconds() / 60 * self.per_min_height)
         self.setFixedHeight(int(height))
         self.task_name = QLabel(task_name)
@@ -34,7 +34,7 @@ class CalendarCard(QWidget) :
         self.task_name.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.task_name.setObjectName("TaskTitle")
         self.task_name.setWordWrap(True)
-        self.task_time = QLabel(f"{start_time.strftime('%H:%M')} - \n{end_time.strftime('%H:%M')}")
+        self.task_time = QLabel(f"{start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}")
         self.task_name.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self.task_time.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.task_time.setObjectName("TaskTime")
@@ -49,7 +49,6 @@ class CalendarCard(QWidget) :
                     background-color: {COLORS["input_bg"]};
                     border: {COLORS["border"]};
                     border-radius: 8px;
-                    padding: 10px;
                 }}
                 #TaskTitle {{
                     color: {COLORS["text_body"]};
@@ -64,7 +63,6 @@ class CalendarCard(QWidget) :
                     background-color: {COLORS["primary"]};
                     border: {COLORS["border"]};
                     border-radius: 8px;
-                    padding: 10px;
                 }}
                 QWidget:hover {{
                     background-color: {COLORS["primary_hover"]};
@@ -87,7 +85,6 @@ class CalendarCard(QWidget) :
                     background-color: {COLORS["primary_pressed"]};
                     border: {COLORS["border"]};
                     border-radius: 8px;
-                    padding: 10px;
                 }}
                 #TaskTitle {{
                     background-color: transparent;
@@ -107,7 +104,6 @@ class CalendarCard(QWidget) :
                     background-color: {COLORS["primary"]};
                     border: {COLORS["border"]};
                     border-radius: 8px;
-                    padding: 10px;
                 }}
                 QWidget:hover {{
                     background-color: {COLORS["primary_hover"]};

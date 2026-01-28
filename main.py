@@ -17,8 +17,11 @@ def launch() :
         main()
 
 def main() :
-    from models.llm_client import llm
+    from views.main_view import MainWindow
     logger.info("SCHEDAI 啟動成功！")
+    window = MainWindow()
+    window.show()
+    # TODO: 須解決日曆直接淡出的問題
 
 if __name__ == "__main__" :
     launch()

@@ -14,7 +14,7 @@ logger.setLevel(logging.DEBUG)
 
 if not logger.handlers :
     console_handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s | %(message)s', datefmt = "%H:%M:%S")
+    formatter = logging.Formatter('%(asctime)s [%(threadName)s] %(levelname)-8s %(filename)s:%(lineno)d | %(message)s', datefmt = "%H:%M:%S")
     console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.DEBUG)
     logger.addHandler(console_handler)

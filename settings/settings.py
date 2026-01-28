@@ -20,7 +20,8 @@ def load_user_config() :
             os.environ["TASK_DECOMPOSITION"] = data["TASK_DECOMPOSITION"]
             os.environ["DEFAULT_TASK_DURATION"] = data["DEFAULT_TASK_DURATION"]
             calendars = data["GOOGLE_CALENDAR_ID"]
-            os.environ["GOOGLE_CALENDAR_ID"] = str(data["GOOGLE_CALENDAR_ID"])
+            os.environ["GOOGLE_CALENDAR_ID"] = str([item["id"] for item in data["GOOGLE_CALENDAR_ID"]])
+            print(os.environ["GOOGLE_CALENDAR_ID"])
             for calendar in calendars :
                 if calendar.get("choose", False) :
                     os.environ["TASK_CALENDAR"] = calendar["id"]
