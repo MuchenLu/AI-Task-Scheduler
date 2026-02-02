@@ -11,13 +11,14 @@ from PyQt6.QtGui import QWindow
 from views.components.text_input import TextInput
 from views.calendar_view import CalendarView
 from controllers.llm_controller import llm_controller
+from controllers.calendar_controller import calendar_controller
 from utils.logger import logger
 
 class MainWindow(QMainWindow) :
     def __init__(self) :
         super().__init__()
         self.fade_out = True
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setWindowOpacity(1.0)
         self.anim = QPropertyAnimation(self, b"windowOpacity")
@@ -40,6 +41,8 @@ class MainWindow(QMainWindow) :
         llm_controller.signal.proccesing.connect(self.loading)
         llm_controller.signal.schedule.connect(lambda suggest_time, fixed_events: self.change_view("calendar_view", suggest_time = suggest_time, fixed_events = fixed_events))
         llm_controller.signal.backup.connect(self.backup)
+        self.calendar_view.choose_signal.connect(calendar_controller.add_task)
+        self.calendar_view.choose_signal.connect(self.reset)
         
         self.widgets = {"text_input": self.text_input,
                         "calendar_view": self.calendar_view}
@@ -58,6 +61,7 @@ class MainWindow(QMainWindow) :
         self.move(x, y)
     
     def resizeEvent(self, event) :
+        print(self.width(), self.height())
         self.move_to_bottom_right()
         return super().resizeEvent(event)
     
@@ -73,11 +77,13 @@ class MainWindow(QMainWindow) :
         return super().eventFilter(obj, event)
     
     def enterEvent(self, event):
-        self.anim.stop()
+        if self.fade_out:
+            self.anim.stop()
         super().enterEvent(event)
     
     def leaveEvent(self, event):
-        self.anim.start()
+        if self.fade_out:
+            self.anim.start()
         super().leaveEvent(event)
         
     def loading(self, success: bool, info: str) :
@@ -98,6 +104,7 @@ class MainWindow(QMainWindow) :
                 self.stack.setCurrentWidget(self.text_input)
                 self.anim.start()
             case "calendar_view" :
+                self.fade_out = False
                 if not all(key in kwargs for key in ["suggest_time", "fixed_events"]) :
                     logger.error("更新 Calendar View 缺少必要參數")
                     return
@@ -114,4 +121,11 @@ class MainWindow(QMainWindow) :
                 obj.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
 
         self.setFixedSize(width, height)
+        QApplication.processEvents()
         self.show()
+        self.move_to_bottom_right()
+    
+    def reset(self) :
+        self.fade_out = True
+        self.setWindowOpacity(1.0)
+        self.anim.start()

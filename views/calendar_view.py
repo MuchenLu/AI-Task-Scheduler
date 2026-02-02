@@ -28,6 +28,7 @@ class HSeparator(QFrame):
                            border: none""")
 
 class CalendarView(QWidget) :
+    choose_signal = pyqtSignal(dict)
     def __init__(self, parent = None) :
         super().__init__(parent)
         self.per_min_height = 1.5
@@ -78,6 +79,7 @@ class CalendarView(QWidget) :
             suggest_time (list): AI 推薦的時間，須為 Google Calendar API 格式
             fixed_event (list): 針對 AI 推薦時間所取得原有的事件，須為 Google Calendar API 格式
         """
+        self.suggest_time = suggest_time
         
         dates = []
         for item in suggest_time :
@@ -105,9 +107,10 @@ class CalendarView(QWidget) :
         
         for item in suggest_time :
             summary = item["summary"]
-            start = item["start"]["dateTime"]
-            end = item["end"]["dateTime"]
+            start = item["start"].get("dateTime", item["start"].get("date"))
+            end = item["end"].get("dateTime", item["end"].get("date"))
             card = CalendarCard(self.widget, summary, to_ISO8601(start, "datetime"), to_ISO8601(end, "datetime"), "suggest")
+            card.choose_signal.connect(lambda start, end: self.return_suggest_time(start, end))
             x = int(100 + 150 * dates.index(start.split("T")[0])) # NOTE: 時間的位移再加上日期的位置
             y = int(30 * self.per_min_height + (to_ISO8601(start, "datetime") - set_to_start(start, "datetime")).total_seconds() / 60 * self.per_min_height) # 先位移一格（因為從第二格起算）再來開始到該時間的像素
             card.move(int(x + ((150 - card.width()) / 2)), y)
@@ -115,8 +118,8 @@ class CalendarView(QWidget) :
         
         for item in fixed_event :
             summary = item["summary"]
-            start = item["start"]["dateTime"]
-            end = item["end"]["dateTime"]
+            start = item["start"].get("dateTime", item["start"].get("date"))
+            end = item["end"].get("dateTime", item["end"].get("date"))
             try :
                 pos = dates.index(start.split("T")[0])
             except ValueError :
@@ -140,3 +143,11 @@ class CalendarView(QWidget) :
             color: {COLORS["text_header"]};
             font-size: 16px;
         }}""")
+        
+    def return_suggest_time(self, start, end) :
+        start = to_ISO8601(start, "str")
+        end = to_ISO8601(end, "str")
+        for item in self.suggest_time :
+            if item["start"]["dateTime"] == start and item["end"]["dateTime"] == end :
+                self.choose_signal.emit(item)
+                return

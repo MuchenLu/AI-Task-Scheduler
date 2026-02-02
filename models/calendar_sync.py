@@ -82,6 +82,7 @@ class CalendarService :
         try :
             for calendar_id in literal_eval(os.getenv("GOOGLE_CALENDAR_ID")) :
                 events = self.service.events().list(calendarId = calendar_id, timeMin = start_time, timeMax = end_time, singleEvents = True, eventTypes = ["default"], orderBy = "startTime").execute().get("items", [])
+                events = [event for event in events if event.get("transparency", "opaque") == "opaque"]
                 total_events.extend(events)
             total_events.sort(key = lambda x : x["start"].get("dateTime", x["start"].get("date")))
             return total_events
