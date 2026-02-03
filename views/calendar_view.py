@@ -79,6 +79,8 @@ class CalendarView(QWidget) :
             suggest_time (list): AI 推薦的時間，須為 Google Calendar API 格式
             fixed_event (list): 針對 AI 推薦時間所取得原有的事件，須為 Google Calendar API 格式
         """
+        # print(f"{suggest_time=}\n{fixed_event=}")
+        
         self.suggest_time = suggest_time
         
         dates = []
@@ -117,7 +119,7 @@ class CalendarView(QWidget) :
             card.show()
         
         for item in fixed_event :
-            summary = item["summary"]
+            summary = item.get("summary", "私人事件")
             start = item["start"].get("dateTime", item["start"].get("date"))
             end = item["end"].get("dateTime", item["end"].get("date"))
             try :

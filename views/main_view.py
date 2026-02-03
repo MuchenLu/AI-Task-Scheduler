@@ -23,7 +23,7 @@ class MainWindow(QMainWindow) :
         self.setWindowOpacity(1.0)
         self.anim = QPropertyAnimation(self, b"windowOpacity")
         self.anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        self.anim.setDuration(5000)
+        self.anim.setDuration(10000)
         self.anim.setStartValue(1.0)
         self.anim.setEndValue(0.0)
         self.anim.finished.connect(self.hide)
@@ -59,6 +59,11 @@ class MainWindow(QMainWindow) :
         x = (screen.x() + screen.width()) - self.width() - margin
         y = (screen.y() + screen.height()) - self.height() - margin
         self.move(x, y)
+    
+    def show(self) :
+        self.setWindowOpacity(1.0)
+        self.move_to_bottom_right()
+        super().show()
     
     def resizeEvent(self, event) :
         print(self.width(), self.height())
@@ -114,11 +119,11 @@ class MainWindow(QMainWindow) :
         
         for key, obj in self.widgets.items() :
             if key == view :
-                obj.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                # obj.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
                 width = obj.width()
                 height = obj.height()
-            else :
-                obj.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+            # else :
+                # obj.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
 
         self.setFixedSize(width, height)
         QApplication.processEvents()
@@ -126,6 +131,7 @@ class MainWindow(QMainWindow) :
         self.move_to_bottom_right()
     
     def reset(self) :
+        # self.change_view("text_input")
         self.fade_out = True
         self.setWindowOpacity(1.0)
         self.anim.start()
