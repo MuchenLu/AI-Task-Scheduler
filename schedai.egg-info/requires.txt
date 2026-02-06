@@ -1,0 +1,15 @@
+google-api-python-client
+google-auth-oauthlib
+google-generativeai
+python-dotenv
+PyQt6
+keyboard
+openai-whisper
+PyAudio
+pydub
+pytz
+python-dateutil
+
+[dev]
+pytest
+pyinstaller
